@@ -1,0 +1,16 @@
+# Python
+venv/
+__pycache__/
+*.pyc
+backend/.env
+
+# Node.js
+frontend/node_modules/
+frontend/.next/
+frontend/.env.local
+
+# macOS
+.DS_Store
+
+# Editors
+.vscode/
