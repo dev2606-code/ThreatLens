@@ -1,4 +1,10 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import (
+    APIRouter,
+    Depends,
+    HTTPException,
+    Response,
+    status,
+)
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -76,3 +82,25 @@ def create_indicator(
         )
 
     return indicator
+@router.delete(
+    "/{indicator_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+def delete_indicator(
+    indicator_id: int,
+    database: Session = Depends(get_database),
+):
+    indicator = database.get(Indicator, indicator_id)
+
+    if indicator is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Indicator not found.",
+        )
+
+    database.delete(indicator)
+    database.commit()
+
+    return Response(
+        status_code=status.HTTP_204_NO_CONTENT,
+    )

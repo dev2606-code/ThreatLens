@@ -8,6 +8,7 @@ import {
   RefreshCw,
   Search,
   ShieldCheck,
+  Trash2,
 } from "lucide-react";
 
 type Indicator = {
@@ -28,6 +29,7 @@ export default function IndicatorsPage() {
   const [severity, setSeverity] = useState("All");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [deletingId, setDeletingId] = useState<number | null>(null);
 
   const loadIndicators = useCallback(async () => {
     setLoading(true);
@@ -36,7 +38,9 @@ export default function IndicatorsPage() {
     try {
       const response = await fetch(
         "http://127.0.0.1:8000/api/indicators",
-        { cache: "no-store" },
+        {
+          cache: "no-store",
+        },
       );
 
       if (!response.ok) {
@@ -46,10 +50,9 @@ export default function IndicatorsPage() {
       const data: Indicator[] = await response.json();
       setIndicators(data);
     } catch {
-      setError(
-        "Backend connection failed. Make sure FastAPI is running.",
-      );
-    } finally {
+      setError
+       "Backend connection failed. Make sure FastAPI is running."
+       } finally {
       setLoading(false);
     }
   }, []);
@@ -90,6 +93,41 @@ export default function IndicatorsPage() {
     return "border-cyan-500/20 bg-cyan-500/10 text-cyan-400";
   }
 
+  async function deleteIndicator(indicator: Indicator) {
+    const confirmed = window.confirm(
+      `Delete indicator "${indicator.value}"?`,
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    setDeletingId(indicator.id);
+
+    try {
+      const response = await fetch(
+        `http://127.0.0.1:8000/api/indicators/${indicator.id}`,
+        {
+          method: "DELETE",
+        },
+      );
+
+      if (!response.ok) {
+        throw new Error("Delete failed");
+      }
+
+      setIndicators((currentIndicators) =>
+        currentIndicators.filter(
+          (item) => item.id !== indicator.id,
+        ),
+      );
+    } catch {
+      window.alert("Unable to delete indicator.");
+    } finally {
+      setDeletingId(null);
+    }
+  }
+
   return (
     <main className="min-h-screen bg-[#030509] text-slate-100">
       <header className="border-b border-white/[0.07] bg-[#050810]">
@@ -112,7 +150,7 @@ export default function IndicatorsPage() {
 
           <Link
             href="/"
-            className="flex items-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.03] px-4 py-2.5 text-sm text-slate-400 hover:text-white"
+            className="flex items-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.03] px-4 py-2.5 text-sm text-slate-400 transition hover:text-white"
           >
             <ArrowLeft className="h-4 w-4" />
             Dashboard
@@ -140,7 +178,7 @@ export default function IndicatorsPage() {
             type="button"
             onClick={loadIndicators}
             disabled={loading}
-            className="flex items-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.03] px-4 py-2.5 text-sm text-slate-400 hover:text-white"
+            className="flex items-center justify-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.03] px-4 py-2.5 text-sm text-slate-400 transition hover:text-white disabled:opacity-50"
           >
             <RefreshCw
               className={`h-4 w-4 ${
@@ -166,7 +204,7 @@ export default function IndicatorsPage() {
           <select
             value={severity}
             onChange={(event) => setSeverity(event.target.value)}
-            className="h-12 rounded-xl border border-white/[0.08] bg-[#080c14] px-4 text-sm outline-none"
+            className="h-12 rounded-xl border border-white/[0.08] bg-[#080c14] px-4 text-sm outline-none focus:border-violet-500/50"
           >
             <option>All</option>
             <option>Critical</option>
@@ -178,7 +216,10 @@ export default function IndicatorsPage() {
 
         <div className="mb-5 grid gap-4 sm:grid-cols-3">
           <article className="rounded-2xl border border-white/[0.08] bg-[#080c14] p-5">
-            <p className="text-sm text-slate-500">Total indicators</p>
+            <p className="text-sm text-slate-500">
+              Total indicators
+            </p>
+
             <strong className="mt-2 block text-3xl">
               {indicators.length}
             </strong>
@@ -200,7 +241,10 @@ export default function IndicatorsPage() {
           </article>
 
           <article className="rounded-2xl border border-violet-500/15 bg-[#080c14] p-5">
-            <p className="text-sm text-slate-500">Search results</p>
+            <p className="text-sm text-slate-500">
+              Search results
+            </p>
+
             <strong className="mt-2 block text-3xl text-violet-400">
               {filteredIndicators.length}
             </strong>
@@ -212,7 +256,10 @@ export default function IndicatorsPage() {
             <Database className="h-5 w-5 text-violet-400" />
 
             <div>
-              <h3 className="font-semibold">Indicator database</h3>
+              <h3 className="font-semibold">
+                Indicator database
+              </h3>
+
               <p className="text-xs text-slate-500">
                 Ordered by highest severity score.
               </p>
@@ -220,22 +267,30 @@ export default function IndicatorsPage() {
           </div>
 
           {error && (
-            <div className="m-5 rounded-xl bg-red-500/10 p-4 text-sm text-red-400">
+            <div className="m-5 rounded-xl border border-red-500/20 bg-red-500/10 p-4 text-sm text-red-400">
               {error}
             </div>
           )}
 
           {!error && loading && (
-            <div className="p-12 text-center text-slate-500">
+            <div className="p-12 text-center text-sm text-slate-500">
               Loading indicators...
             </div>
           )}
 
           {!error &&
             !loading &&
+            filteredIndicators.length === 0 && (
+              <div className="p-12 text-center text-sm text-slate-500">
+                No matching indicators found.
+              </div>
+            )}
+
+          {!error &&
+            !loading &&
             filteredIndicators.length > 0 && (
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[900px] text-left text-sm">
+                <table className="w-full min-w-[1050px] text-left text-sm">
                   <thead className="text-[10px] uppercase tracking-wider text-slate-600">
                     <tr>
                       <th className="px-5 py-4">Indicator</th>
@@ -245,6 +300,7 @@ export default function IndicatorsPage() {
                       <th className="px-5 py-4">Source</th>
                       <th className="px-5 py-4">Status</th>
                       <th className="px-5 py-4">Added</th>
+                      <th className="px-5 py-4">Action</th>
                     </tr>
                   </thead>
 
@@ -252,7 +308,7 @@ export default function IndicatorsPage() {
                     {filteredIndicators.map((indicator) => (
                       <tr
                         key={indicator.id}
-                        className="border-t border-white/[0.055] hover:bg-white/[0.025]"
+                        className="border-t border-white/[0.055] transition hover:bg-white/[0.025]"
                       >
                         <td className="max-w-[300px] truncate px-5 py-4 font-mono text-xs text-blue-300">
                           {indicator.value}
@@ -268,7 +324,7 @@ export default function IndicatorsPage() {
 
                         <td className="px-5 py-4">
                           <span
-                            className={`rounded-full border px-2.5 py-1 text-xs ${severityStyle(
+                            className={`inline-flex rounded-full border px-2.5 py-1 text-xs ${severityStyle(
                               indicator.severity,
                             )}`}
                           >
@@ -289,18 +345,26 @@ export default function IndicatorsPage() {
                             indicator.created_at,
                           ).toLocaleDateString()}
                         </td>
+
+                        <td className="px-5 py-4">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              deleteIndicator(indicator)
+                            }
+                            disabled={
+                              deletingId === indicator.id
+                            }
+                            className="rounded-lg border border-red-500/20 bg-red-500/10 p-2 text-red-400 transition hover:bg-red-500/20 disabled:opacity-50"
+                            title="Delete indicator"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
-              </div>
-            )}
-
-          {!error &&
-            !loading &&
-            filteredIndicators.length === 0 && (
-              <div className="p-12 text-center text-slate-500">
-                No matching indicators found.
               </div>
             )}
         </article>
