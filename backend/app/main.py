@@ -1,6 +1,12 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from backend.app.api.indicators import router as indicators_router
+from backend.app.core.database import Base, engine
+from backend.app.models.indicator import Indicator
+
+Base.metadata.create_all(bind=engine)
+
 app = FastAPI(
     title="ThreatLens API",
     description="Cyber Threat Intelligence Dashboard API",
@@ -9,11 +15,16 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=[
+        "http://localhost:3000",
+        "http://localhost:3001",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.include_router(indicators_router)
 
 
 @app.get("/")
