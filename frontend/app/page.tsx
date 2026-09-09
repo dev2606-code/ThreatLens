@@ -13,10 +13,12 @@ import {
   Search,
   Settings,
   ShieldCheck,
+  ShieldPlus,
   Siren,
   SlidersHorizontal,
   User,
 } from "lucide-react";
+
 import {
   Area,
   AreaChart,
@@ -29,6 +31,8 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+
+import AddIndicatorModal from "./components/AddIndicatorModal";
 
 type DashboardStats = {
   active_indicators: number;
@@ -61,7 +65,7 @@ const severityData = [
   { name: "Low", value: 11995, color: "#22d3ee" },
 ];
 
-const threats = [
+const fallbackThreats = [
   {
     indicator: "185.199.110.42",
     type: "IP Address",
@@ -107,30 +111,68 @@ const mapPoints = [
   { left: "32%", top: "62%", color: "bg-cyan-400", size: "h-3 w-3" },
   { left: "57%", top: "67%", color: "bg-violet-500", size: "h-3 w-3" },
 ];
-
 export default function Home() {
-  const [stats, setStats] = useState<DashboardStats>(fallbackStats);
+const [stats, setStats] = useState<DashboardStats>(fallbackStats);
+const [isModalOpen, setIsModalOpen] = useState(false);
+const [threats, setThreats] = useState(fallbackThreats);
 
-  useEffect(() => {
-    async function loadStats() {
-      try {
-        const response = await fetch(
-          "http://127.0.0.1:8000/api/dashboard/stats",
+useEffect(() => {
+  async function loadDashboardData() {
+    try {
+      const statsResponse = await fetch(
+        "http://127.0.0.1:8000/api/dashboard/stats",
+      );
+
+      if (statsResponse.ok) {
+        const statsData: DashboardStats =
+          await statsResponse.json();
+
+        setStats(statsData);
+      }
+
+      const indicatorsResponse = await fetch(
+        "http://127.0.0.1:8000/api/indicators",
+      );
+
+      if (indicatorsResponse.ok) {
+        const indicators = await indicatorsResponse.json();
+
+        const formattedIndicators = indicators.map(
+          (indicator: {
+            id: number;
+            value: string;
+            indicator_type: string;
+            severity_score: number;
+            severity: string;
+            source: string;
+            created_at: string;
+          }) => ({
+            indicator: indicator.value,
+            type: indicator.indicator_type,
+            score: indicator.severity_score,
+            severity: indicator.severity,
+            source: indicator.source,
+            time: new Date(
+              indicator.created_at,
+            ).toLocaleTimeString([], {
+              hour: "2-digit",
+              minute: "2-digit",
+            }),
+          }),
         );
 
-        if (!response.ok) {
-          return;
-        }
-
-        const data: DashboardStats = await response.json();
-        setStats(data);
-      } catch {
-        setStats(fallbackStats);
+        setThreats(formattedIndicators);
       }
+    } catch {
+      setStats(fallbackStats);
+      setThreats(fallbackThreats);
     }
+  }
 
-    loadStats();
-  }, []);
+  loadDashboardData();
+}, []);
+
+
 
   const navigation = [
     { name: "Overview", icon: LayoutDashboard, active: true },
@@ -146,7 +188,7 @@ export default function Home() {
     {
       title: "Active Indicators",
       value: stats.active_indicators.toLocaleString(),
-      change: "+12%",
+      change: "Stored IOCs",
       icon: Radar,
       iconColor: "text-violet-400",
       iconBackground: "bg-violet-500/10",
@@ -155,7 +197,7 @@ export default function Home() {
     {
       title: "Critical Threats",
       value: stats.critical_threats.toString(),
-      change: "+4 today",
+      change: "Needs review",
       icon: CircleAlert,
       iconColor: "text-red-400",
       iconBackground: "bg-red-500/10",
@@ -164,7 +206,7 @@ export default function Home() {
     {
       title: "Open Alerts",
       value: stats.open_alerts.toString(),
-      change: "38 assigned",
+      change: "High-risk items",
       icon: Siren,
       iconColor: "text-blue-400",
       iconBackground: "bg-blue-500/10",
@@ -173,7 +215,7 @@ export default function Home() {
     {
       title: "Feeds Online",
       value: `${stats.feeds_online}/8`,
-      change: "100% healthy",
+      change: "All operational",
       icon: Database,
       iconColor: "text-emerald-400",
       iconBackground: "bg-emerald-500/10",
@@ -309,6 +351,14 @@ export default function Home() {
               </div>
 
               <div className="flex items-center gap-2">
+                <button
+  type="button"
+  onClick={() => setIsModalOpen(true)}
+  className="flex items-center gap-2 rounded-lg bg-violet-600 px-4 py-2 text-xs font-semibold text-white transition hover:bg-violet-500"
+>
+  <ShieldPlus className="h-4 w-4" />
+  Add Indicator
+</button>
                 {["24H", "7D", "30D"].map((period, index) => (
                   <button
                     key={period}
@@ -637,6 +687,13 @@ export default function Home() {
           </div>
         </section>
       </div>
+      <AddIndicatorModal
+  isOpen={isModalOpen}
+  onClose={() => setIsModalOpen(false)}
+  onCreated={() => {
+    window.location.reload();
+  }}
+/>
     </main>
   );
 }

@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from backend.app.api.indicators import router as indicators_router
-from backend.app.core.database import Base, engine
+from backend.app.core.database import Base, SessionLocal, engine
 from backend.app.models.indicator import Indicator
 
 Base.metadata.create_all(bind=engine)
@@ -47,9 +47,39 @@ def health_check():
 
 @app.get("/api/dashboard/stats")
 def dashboard_stats():
-    return {
-        "active_indicators": 12847,
-        "critical_threats": 24,
-        "open_alerts": 156,
-        "feeds_online": 8,
-    }
+    database = SessionLocal()
+
+    try:
+        active_indicators = (
+            database.query(Indicator)
+            .filter(Indicator.status == "Active")
+            .count()
+        )
+
+        critical_threats = (
+            database.query(Indicator)
+            .filter(
+                Indicator.status == "Active",
+                Indicator.severity == "Critical",
+            )
+            .count()
+        )
+
+        open_alerts = (
+            database.query(Indicator)
+            .filter(
+                Indicator.status == "Active",
+                Indicator.severity.in_(["Critical", "High"]),
+            )
+            .count()
+        )
+
+        return {
+            "active_indicators": active_indicators,
+            "critical_threats": critical_threats,
+            "open_alerts": open_alerts,
+            "feeds_online": 8,
+        }
+
+    finally:
+        database.close()
