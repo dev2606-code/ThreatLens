@@ -1,7 +1,6 @@
 from datetime import datetime, timezone
 
-from sqlalchemy import DateTime, Integer, String, Text
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy import Column, DateTime, Integer, String, Text
 
 from backend.app.core.database import Base
 
@@ -9,54 +8,54 @@ from backend.app.core.database import Base
 class Indicator(Base):
     __tablename__ = "indicators"
 
-    id: Mapped[int] = mapped_column(
+    id = Column(
         Integer,
         primary_key=True,
         index=True,
     )
 
-    value: Mapped[str] = mapped_column(
+    value = Column(
         String(500),
         unique=True,
         index=True,
         nullable=False,
     )
 
-    indicator_type: Mapped[str] = mapped_column(
+    indicator_type = Column(
         String(50),
         index=True,
         nullable=False,
     )
 
-    severity_score: Mapped[int] = mapped_column(
+    severity_score = Column(
         Integer,
         default=0,
         nullable=False,
     )
 
-    severity: Mapped[str] = mapped_column(
+    severity = Column(
         String(20),
         default="Low",
         nullable=False,
     )
 
-    source: Mapped[str] = mapped_column(
+    source = Column(
         String(100),
         nullable=False,
     )
 
-    status: Mapped[str] = mapped_column(
+    status = Column(
         String(30),
         default="Active",
         nullable=False,
     )
 
-    description: Mapped[str | None] = mapped_column(
+    description = Column(
         Text,
         nullable=True,
     )
 
-    created_at: Mapped[datetime] = mapped_column(
+    created_at = Column(
         DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
         nullable=False,

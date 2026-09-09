@@ -37,7 +37,7 @@ def get_indicators(
     database: Session = Depends(get_database),
 ):
     statement = select(Indicator).order_by(
-        Indicator.severity_score.desc(),
+        Indicator.severity_score.desc()
     )
 
     return database.scalars(statement).all()
@@ -66,6 +66,7 @@ def create_indicator(
     try:
         database.commit()
         database.refresh(indicator)
+
     except IntegrityError:
         database.rollback()
 

@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -25,7 +26,7 @@ class IndicatorCreate(BaseModel):
         max_length=100,
     )
 
-    description: str | None = None
+    description: Optional[str] = None
 
 
 class IndicatorResponse(BaseModel):
@@ -38,5 +39,5 @@ class IndicatorResponse(BaseModel):
     severity: str
     source: str
     status: str
-    description: str | None
+    description: Optional[str]
     created_at: datetime
