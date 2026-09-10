@@ -246,14 +246,16 @@ useEffect(() => {
           <nav className="flex-1 space-y-2 p-4">
             {navigation.map((item) => {
               const Icon = item.icon;
-            const href =
+const href =
   item.name === "Indicators"
     ? "/indicators"
     : item.name === "Alerts"
       ? "/alerts"
       : item.name === "Threat Map"
         ? "/threat-map"
-        : "/";
+        : item.name === "Intelligence Feeds"
+          ? "/intelligence-feeds"
+          : "/";
 
               return (
                 <Link
