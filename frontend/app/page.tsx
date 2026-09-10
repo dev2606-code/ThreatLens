@@ -255,7 +255,9 @@ const href =
         ? "/threat-map"
         : item.name === "Intelligence Feeds"
           ? "/intelligence-feeds"
-          : "/";
+          : item.name === "Reports"
+            ? "/reports"
+            : "/";
 
               return (
                 <Link
