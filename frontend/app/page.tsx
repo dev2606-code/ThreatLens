@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import {
   Activity,
@@ -245,10 +246,17 @@ useEffect(() => {
           <nav className="flex-1 space-y-2 p-4">
             {navigation.map((item) => {
               const Icon = item.icon;
+              const href =
+                item.name === "Indicators"
+                  ? "/indicators"
+                  : item.name === "Alerts"
+                    ? "/alerts"
+                    : "/";
 
               return (
-                <button
+                <Link
                   key={item.name}
+                  href={href}
                   className={`group flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm transition ${
                     item.active
                       ? "border border-violet-500/20 bg-violet-500/10 text-violet-300"
@@ -263,7 +271,7 @@ useEffect(() => {
                       {item.badge}
                     </span>
                   )}
-                </button>
+                </Link>
               );
             })}
           </nav>
