@@ -257,7 +257,9 @@ const href =
           ? "/intelligence-feeds"
           : item.name === "Reports"
             ? "/reports"
-            : "/";
+            : item.name === "Settings"
+              ? "/settings"
+              : "/";
 
               return (
                 <Link
