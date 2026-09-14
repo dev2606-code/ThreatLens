@@ -44,9 +44,9 @@ type DashboardStats = {
 };
 
 const fallbackStats: DashboardStats = {
-  active_indicators: 12847,
-  critical_threats: 24,
-  open_alerts: 156,
+  active_indicators: 0,
+  critical_threats: 0,
+  open_alerts: 0,
   feeds_online: 8,
 };
 
