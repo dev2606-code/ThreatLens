@@ -1,5 +1,6 @@
 "use client";
-
+const API_URL =
+  process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8000";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import {
@@ -121,7 +122,7 @@ useEffect(() => {
   async function loadDashboardData() {
     try {
       const statsResponse = await fetch(
-        "http://127.0.0.1:8000/api/dashboard/stats",
+      `${API_URL}/api/dashboard/stats`
       );
 
       if (statsResponse.ok) {
@@ -132,7 +133,7 @@ useEffect(() => {
       }
 
       const indicatorsResponse = await fetch(
-        "http://127.0.0.1:8000/api/indicators",
+       `${API_URL}/api/indicators`
       );
 
       if (indicatorsResponse.ok) {
