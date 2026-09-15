@@ -2,6 +2,8 @@
 
 import { FormEvent, useState } from "react";
 import { Loader2, ShieldPlus, X } from "lucide-react";
+const API_URL =
+  process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8000";
 
 type AddIndicatorModalProps = {
   isOpen: boolean;
@@ -33,9 +35,9 @@ export default function AddIndicatorModal({
 
     try {
       const response = await fetch(
-        "http://127.0.0.1:8000/api/indicators",
-        {
-          method: "POST",
+  `${API_URL}/api/indicators`,
+  {
+    method: "POST",
           headers: {
             "Content-Type": "application/json",
           },

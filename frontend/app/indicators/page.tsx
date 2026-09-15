@@ -3,13 +3,16 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
-  ArrowLeft,
-  Database,
-  RefreshCw,
   Search,
+  RefreshCw,
+  Database,
   ShieldCheck,
   Trash2,
+  ArrowLeft,
 } from "lucide-react";
+
+const API_URL =
+  process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8000";
 
 type Indicator = {
   id: number;
@@ -36,12 +39,9 @@ export default function IndicatorsPage() {
     setError("");
 
     try {
-      const response = await fetch(
-        "http://127.0.0.1:8000/api/indicators",
-        {
-          cache: "no-store",
-        },
-      );
+     const response = await fetch(`${API_URL}/api/indicators`, {
+  cache: "no-store",
+});
 
       if (!response.ok) {
         throw new Error("Unable to load indicators");
@@ -105,12 +105,12 @@ export default function IndicatorsPage() {
     setDeletingId(indicator.id);
 
     try {
-      const response = await fetch(
-        `http://127.0.0.1:8000/api/indicators/${indicator.id}`,
-        {
-          method: "DELETE",
-        },
-      );
+   const response = await fetch(
+  `${API_URL}/api/indicators/${indicator.id}`,
+  {
+    method: "DELETE",
+  },
+);
 
       if (!response.ok) {
         throw new Error("Delete failed");
@@ -121,11 +121,11 @@ export default function IndicatorsPage() {
           (item) => item.id !== indicator.id,
         ),
       );
-    } catch {
-      window.alert("Unable to delete indicator.");
-    } finally {
-      setDeletingId(null);
-    }
+   } catch {
+  setError("Backend connection failed. Make sure FastAPI is running.");
+} finally {
+  setLoading(false);
+}
   }
 
   return (
