@@ -32,7 +32,11 @@ export default function AddIndicatorModal({
     event.preventDefault();
     setLoading(true);
     setMessage("");
+const token = localStorage.getItem("threatlens_token");
 
+if (!token) {
+  throw new Error("Please sign in again.");
+}
     try {
       const response = await fetch(
   `${API_URL}/api/indicators`,
@@ -40,6 +44,7 @@ export default function AddIndicatorModal({
     method: "POST",
           headers: {
             "Content-Type": "application/json",
+             Authorization: `Bearer ${token}`,
           },
           body: JSON.stringify({
             value,

@@ -103,7 +103,12 @@ export default function IndicatorsPage() {
     }
 
     setDeletingId(indicator.id);
+const token = localStorage.getItem("threatlens_token");
 
+if (!token) {
+  window.location.href = "/login";
+  return;
+}
     try {
    const response = await fetch(
   `${API_URL}/api/indicators/${indicator.id}`,
