@@ -4,6 +4,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from backend.app.api.indicators import router as indicators_router
 from backend.app.core.database import Base, SessionLocal, engine
 from backend.app.models.indicator import Indicator
+from backend.app.models.user import User
+from backend.app.api.auth import router as auth_router
 
 Base.metadata.create_all(bind=engine)
 
@@ -24,7 +26,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 app.include_router(indicators_router)
-
+app.include_router(auth_router)
 
 @app.get("/")
 def home():

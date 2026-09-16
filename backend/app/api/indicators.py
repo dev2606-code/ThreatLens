@@ -15,7 +15,8 @@ from backend.app.schemas.indicator import (
     IndicatorCreate,
     IndicatorResponse,
 )
-
+from backend.app.api.auth import get_current_user
+from backend.app.models.user import User
 router = APIRouter(
     prefix="/api/indicators",
     tags=["Indicators"],
@@ -57,6 +58,7 @@ def get_indicators(
 def create_indicator(
     payload: IndicatorCreate,
     database: Session = Depends(get_database),
+    current_user: User = Depends(get_current_user),
 ):
     indicator = Indicator(
         value=payload.value.strip(),
@@ -89,6 +91,8 @@ def create_indicator(
 def delete_indicator(
     indicator_id: int,
     database: Session = Depends(get_database),
+        current_user: User = Depends(get_current_user),
+
 ):
     indicator = database.get(Indicator, indicator_id)
 
