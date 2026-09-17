@@ -1,5 +1,5 @@
 from typing import Optional
-
+import os
 import jwt
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import (
@@ -22,7 +22,9 @@ from backend.app.schemas.user import (
     UserCreate,
     UserResponse,
 )
-
+ALLOW_REGISTRATION = (
+    os.getenv("ALLOW_REGISTRATION", "false").lower() == "true"
+)
 
 router = APIRouter(
     prefix="/api/auth",
@@ -38,17 +40,21 @@ oauth2_scheme = OAuth2PasswordBearer(
     "/register",
     response_model=UserResponse,
     status_code=status.HTTP_201_CREATED,
-)
 def register_user(
     user_data: UserCreate,
     database: Session = Depends(get_database),
 ):
+    if not ALLOW_REGISTRATION:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Public registration is disabled",
+        )
+
     existing_username = (
         database.query(User)
         .filter(User.username == user_data.username)
         .first()
     )
-
     if existing_username:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
