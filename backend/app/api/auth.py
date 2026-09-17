@@ -35,55 +35,16 @@ oauth2_scheme = OAuth2PasswordBearer(
     tokenUrl="/api/auth/login",
 )
 
-
 @router.post(
     "/register",
     response_model=UserResponse,
     status_code=status.HTTP_201_CREATED,
-def register_user(
-    user_data: UserCreate,
-    database: Session = Depends(get_database),
-):
-    if not ALLOW_REGISTRATION:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Public registration is disabled",
-        )
-
-    existing_username = (
-        database.query(User)
-        .filter(User.username == user_data.username)
-        .first()
+)
+def register_user(user_data: UserCreate):
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail="Public registration is disabled",
     )
-    if existing_username:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Username already exists",
-        )
-
-    existing_email = (
-        database.query(User)
-        .filter(User.email == user_data.email)
-        .first()
-    )
-
-    if existing_email:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Email already exists",
-        )
-
-    user = User(
-        username=user_data.username,
-        email=user_data.email,
-        hashed_password=hash_password(user_data.password),
-    )
-
-    database.add(user)
-    database.commit()
-    database.refresh(user)
-
-    return user
 
 
 @router.post(
