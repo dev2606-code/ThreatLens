@@ -25,3 +25,6 @@ psycopg2-binary
 PyJWT
 pwdlib[argon2]
 python-multipart
+google-auth
+requests
+email-validator

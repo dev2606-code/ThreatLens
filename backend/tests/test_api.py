@@ -23,22 +23,17 @@ def test_dashboard_stats():
     assert "critical_threats" in data
     assert "open_alerts" in data
     assert "feeds_online" in data
-
-
-def test_public_registration_is_disabled():
+def test_registration_rejects_short_password():
     response = client.post(
         "/api/auth/register",
         json={
-            "username": "blocked_test_user",
-            "email": "blocked@example.com",
-            "password": "TestPassword123",
+            "username": "test_user",
+            "email": "test@example.com",
+            "password": "123456",
         },
     )
 
-    assert response.status_code == 403
-    assert response.json()["detail"] == (
-        "Public registration is disabled"
-    )
+    assert response.status_code == 422
 
 
 def test_invalid_login_is_rejected():

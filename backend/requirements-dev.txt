@@ -1,6 +1,3 @@
 -r requirements.txt
 pytest
-httpxcd ~/Desktop/ThreatLens
-mkdir -p backend/tests
-touch backend/tests/test_api.py
-open -a "Visual Studio Code" backend/tests/test_api.py
+httpx

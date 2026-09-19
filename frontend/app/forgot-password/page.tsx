@@ -11,20 +11,22 @@ import {
 } from "lucide-react";
 
 const API_URL =
-  process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8000";
+  process.env.NEXT_PUBLIC_API_URL ??
+  "http://127.0.0.1:8000";
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(
+    event: FormEvent<HTMLFormElement>,
+  ) {
     event.preventDefault();
-
+    setLoading(true);
     setMessage("");
     setError("");
-    setIsLoading(true);
 
     try {
       const response = await fetch(
@@ -42,13 +44,13 @@ export default function ForgotPasswordPage() {
 
       if (!response.ok) {
         throw new Error(
-          data?.detail ?? "Password reset request failed.",
+          data?.detail ?? "Unable to send reset link.",
         );
       }
 
       setMessage(
         data?.message ??
-          "If this email is registered, a reset link has been sent.",
+          "If the email exists, a password reset link has been sent.",
       );
       setEmail("");
     } catch (requestError) {
@@ -58,7 +60,7 @@ export default function ForgotPasswordPage() {
           : "Backend server is not available.",
       );
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   }
 
@@ -91,6 +93,7 @@ export default function ForgotPasswordPage() {
                 <p className="font-medium text-emerald-300">
                   Check your email
                 </p>
+
                 <p className="mt-1 text-sm leading-6 text-slate-400">
                   {message}
                 </p>
@@ -121,11 +124,13 @@ export default function ForgotPasswordPage() {
                   id="email"
                   type="email"
                   value={email}
-                  onChange={(event) => setEmail(event.target.value)}
+                  onChange={(event) =>
+                    setEmail(event.target.value)
+                  }
                   placeholder="you@example.com"
                   autoComplete="email"
                   required
-                  disabled={isLoading}
+                  disabled={loading}
                   className="h-14 w-full rounded-xl border border-white/[0.08] bg-[#070a0f] pl-12 pr-4 text-sm text-white outline-none transition placeholder:text-slate-700 focus:border-violet-500/60 focus:ring-4 focus:ring-violet-500/10 disabled:opacity-60"
                 />
               </div>
@@ -139,10 +144,10 @@ export default function ForgotPasswordPage() {
 
             <button
               type="submit"
-              disabled={isLoading}
+              disabled={loading}
               className="flex h-14 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-violet-600 to-purple-600 px-4 font-semibold text-white shadow-lg shadow-violet-950/30 transition hover:from-violet-500 hover:to-purple-500 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {isLoading ? (
+              {loading ? (
                 <>
                   <Loader2 className="h-5 w-5 animate-spin" />
                   Sending link...

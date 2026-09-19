@@ -1,7 +1,12 @@
+import hashlib
+import secrets
+from typing import Tuple
 import os
+
 from datetime import datetime, timedelta, timezone
 
 import jwt
+
 from pwdlib import PasswordHash
 
 
@@ -45,3 +50,14 @@ def create_access_token(user_id: int) -> str:
         SECRET_KEY,
         algorithm=ALGORITHM,
     )
+def generate_one_time_token() -> Tuple[str, str]:
+    raw_token = secrets.token_urlsafe(48)
+    token_hash = hash_one_time_token(raw_token)
+
+    return raw_token, token_hash
+
+
+def hash_one_time_token(token: str) -> str:
+    return hashlib.sha256(
+        token.encode("utf-8")
+    ).hexdigest()

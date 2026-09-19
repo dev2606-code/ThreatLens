@@ -6,7 +6,7 @@ from backend.app.core.database import Base, SessionLocal, engine
 from backend.app.models.indicator import Indicator
 from backend.app.models.user import User
 from backend.app.api.auth import router as auth_router
-
+from backend.app.models.auth_token import AuthToken
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(

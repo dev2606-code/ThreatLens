@@ -1,9 +1,15 @@
 "use client";
 
 import { FormEvent, useState } from "react";
-import { Loader2, ShieldPlus, X } from "lucide-react";
+import {
+  Loader2,
+  ShieldPlus,
+  X,
+} from "lucide-react";
+
 const API_URL =
-  process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8000";
+  process.env.NEXT_PUBLIC_API_URL ??
+  "http://127.0.0.1:8000";
 
 type AddIndicatorModalProps = {
   isOpen: boolean;
@@ -11,13 +17,46 @@ type AddIndicatorModalProps = {
   onCreated: () => void;
 };
 
+function getErrorMessage(data: unknown): string {
+  if (
+    typeof data === "object" &&
+    data !== null &&
+    "detail" in data
+  ) {
+    const detail = (data as { detail: unknown }).detail;
+
+    if (typeof detail === "string") {
+      return detail;
+    }
+
+    if (Array.isArray(detail)) {
+      return detail
+        .map((item) => {
+          if (
+            typeof item === "object" &&
+            item !== null &&
+            "msg" in item
+          ) {
+            return String(item.msg);
+          }
+
+          return "Invalid form value";
+        })
+        .join(", ");
+    }
+  }
+
+  return "Unable to create indicator.";
+}
+
 export default function AddIndicatorModal({
   isOpen,
   onClose,
   onCreated,
 }: AddIndicatorModalProps) {
   const [value, setValue] = useState("");
-  const [indicatorType, setIndicatorType] = useState("IP Address");
+  const [indicatorType, setIndicatorType] =
+    useState("IP Address");
   const [score, setScore] = useState(50);
   const [source, setSource] = useState("");
   const [description, setDescription] = useState("");
@@ -28,157 +67,234 @@ export default function AddIndicatorModal({
     return null;
   }
 
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  function resetForm() {
+    setValue("");
+    setIndicatorType("IP Address");
+    setScore(50);
+    setSource("");
+    setDescription("");
+    setMessage("");
+  }
+
+  function handleClose() {
+    if (loading) {
+      return;
+    }
+
+    resetForm();
+    onClose();
+  }
+
+  async function handleSubmit(
+    event: FormEvent<HTMLFormElement>,
+  ) {
     event.preventDefault();
     setLoading(true);
     setMessage("");
-const token = localStorage.getItem("threatlens_token");
 
-if (!token) {
-  throw new Error("Please sign in again.");
-}
     try {
+      const token = localStorage.getItem(
+        "threatlens_token",
+      );
+
+      if (!token) {
+        throw new Error(
+          "Your session has expired. Please sign in again.",
+        );
+      }
+
       const response = await fetch(
-  `${API_URL}/api/indicators`,
-  {
-    method: "POST",
+        `${API_URL}/api/indicators`,
+        {
+          method: "POST",
           headers: {
             "Content-Type": "application/json",
-             Authorization: `Bearer ${token}`,
+            Authorization: `Bearer ${token}`,
           },
           body: JSON.stringify({
-            value,
+            value: value.trim(),
             indicator_type: indicatorType,
             severity_score: score,
-            source,
-            description: description || null,
+            source: source.trim(),
+            description:
+              description.trim() || null,
           }),
         },
       );
 
-      const data = await response.json();
+      const data = await response
+        .json()
+        .catch(() => null);
 
       if (!response.ok) {
-      const errorMessage = Array.isArray(data.detail)
-  ? data.detail
-      .map((error: { msg?: string }) => error.msg || "Invalid value")
-      .join(", ")
-  : typeof data.detail === "string"
-    ? data.detail
-    : "Unable to create indicator.";
-
-     setMessage(errorMessage);
-      return;
+        throw new Error(getErrorMessage(data));
       }
 
-      setValue("");
-      setIndicatorType("IP Address");
-      setScore(50);
-      setSource("");
-      setDescription("");
-
+      resetForm();
       onCreated();
       onClose();
-    } catch {
-      setMessage("Backend server is not available.");
+    } catch (requestError) {
+      setMessage(
+        requestError instanceof Error
+          ? requestError.message
+          : "Backend server is not available.",
+      );
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm">
-      <div className="w-full max-w-lg rounded-2xl border border-violet-500/20 bg-[#080c14] shadow-2xl shadow-violet-950/30">
-        <div className="flex items-center justify-between border-b border-white/[0.08] p-5">
-          <div className="flex items-center gap-3">
-            <div className="rounded-xl bg-violet-500/10 p-2.5">
-              <ShieldPlus className="h-5 w-5 text-violet-400" />
+    <div
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/75 px-4 py-8 backdrop-blur-sm"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="add-indicator-title"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) {
+          handleClose();
+        }
+      }}
+    >
+      <section className="max-h-full w-full max-w-xl overflow-y-auto rounded-3xl border border-white/[0.08] bg-[#0b0e14] p-6 shadow-2xl shadow-black/70 sm:p-8">
+        <header className="mb-7 flex items-start justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-violet-500/30 bg-violet-500/10 text-violet-400">
+              <ShieldPlus className="h-6 w-6" />
             </div>
 
             <div>
-              <h2 className="font-semibold text-white">
-                Add Indicator
+              <h2
+                id="add-indicator-title"
+                className="text-xl font-semibold text-white"
+              >
+                Add threat indicator
               </h2>
 
-              <p className="text-xs text-slate-500">
-                Add a new IOC to ThreatLens
+              <p className="mt-1 text-sm text-slate-500">
+                Store a new indicator of compromise.
               </p>
             </div>
           </div>
 
           <button
             type="button"
-            onClick={onClose}
-            className="rounded-lg p-2 text-slate-500 hover:bg-white/5 hover:text-white"
+            onClick={handleClose}
+            disabled={loading}
+            aria-label="Close modal"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/[0.08] text-slate-500 transition hover:bg-white/[0.05] hover:text-white disabled:opacity-50"
           >
             <X className="h-5 w-5" />
           </button>
-        </div>
+        </header>
 
-        <form onSubmit={handleSubmit} className="space-y-4 p-5">
+        <form
+          onSubmit={handleSubmit}
+          className="space-y-5"
+        >
           <div>
-            <label className="mb-2 block text-xs font-medium text-slate-400">
+            <label
+              htmlFor="indicator-value"
+              className="mb-2 block text-sm font-medium text-slate-300"
+            >
               Indicator value
             </label>
 
             <input
-              required
+              id="indicator-value"
+              type="text"
               value={value}
-              onChange={(event) => setValue(event.target.value)}
+              onChange={(event) =>
+                setValue(event.target.value)
+              }
               placeholder="IP, domain, URL or file hash"
-              className="w-full rounded-xl border border-white/[0.08] bg-black/30 px-4 py-3 text-sm outline-none placeholder:text-slate-700 focus:border-violet-500/50"
+              required
+              disabled={loading}
+              className="h-13 w-full rounded-xl border border-white/[0.08] bg-[#070a0f] px-4 py-3 text-sm text-white outline-none transition placeholder:text-slate-700 focus:border-violet-500/60 focus:ring-4 focus:ring-violet-500/10 disabled:opacity-60"
             />
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-5 sm:grid-cols-2">
             <div>
-              <label className="mb-2 block text-xs font-medium text-slate-400">
+              <label
+                htmlFor="indicator-type"
+                className="mb-2 block text-sm font-medium text-slate-300"
+              >
                 Indicator type
               </label>
 
               <select
+                id="indicator-type"
                 value={indicatorType}
                 onChange={(event) =>
                   setIndicatorType(event.target.value)
                 }
-                className="w-full rounded-xl border border-white/[0.08] bg-[#070a10] px-4 py-3 text-sm outline-none focus:border-violet-500/50"
+                disabled={loading}
+                className="h-13 w-full rounded-xl border border-white/[0.08] bg-[#070a0f] px-4 py-3 text-sm text-white outline-none transition focus:border-violet-500/60 focus:ring-4 focus:ring-violet-500/10 disabled:opacity-60"
               >
-                <option>IP Address</option>
-                <option>Domain</option>
-                <option>URL</option>
-                <option>File Hash</option>
-                <option>Email</option>
-                <option>CVE</option>
+                <option value="IP Address">
+                  IP Address
+                </option>
+                <option value="Domain">Domain</option>
+                <option value="URL">URL</option>
+                <option value="File Hash">
+                  File Hash
+                </option>
+                <option value="Email">
+                  Email Address
+                </option>
               </select>
             </div>
 
             <div>
-              <label className="mb-2 block text-xs font-medium text-slate-400">
+              <label
+                htmlFor="indicator-source"
+                className="mb-2 block text-sm font-medium text-slate-300"
+              >
                 Source
               </label>
 
               <input
-                required
+                id="indicator-source"
+                type="text"
                 value={source}
-                onChange={(event) => setSource(event.target.value)}
-                placeholder="Example: Manual"
-                className="w-full rounded-xl border border-white/[0.08] bg-black/30 px-4 py-3 text-sm outline-none placeholder:text-slate-700 focus:border-violet-500/50"
+                onChange={(event) =>
+                  setSource(event.target.value)
+                }
+                placeholder="Manual analysis"
+                required
+                disabled={loading}
+                className="h-13 w-full rounded-xl border border-white/[0.08] bg-[#070a0f] px-4 py-3 text-sm text-white outline-none transition placeholder:text-slate-700 focus:border-violet-500/60 focus:ring-4 focus:ring-violet-500/10 disabled:opacity-60"
               />
             </div>
           </div>
 
           <div>
-            <div className="mb-2 flex justify-between text-xs">
-              <label className="font-medium text-slate-400">
-                Risk score
+            <div className="mb-2 flex items-center justify-between">
+              <label
+                htmlFor="severity-score"
+                className="text-sm font-medium text-slate-300"
+              >
+                Severity score
               </label>
 
-              <span className="font-semibold text-violet-400">
+              <span
+                className={`rounded-lg px-2.5 py-1 text-xs font-semibold ${
+                  score >= 90
+                    ? "bg-red-500/10 text-red-400"
+                    : score >= 70
+                      ? "bg-orange-500/10 text-orange-400"
+                      : score >= 40
+                        ? "bg-violet-500/10 text-violet-400"
+                        : "bg-cyan-500/10 text-cyan-400"
+                }`}
+              >
                 {score}/100
               </span>
             </div>
 
             <input
+              id="severity-score"
               type="range"
               min="0"
               max="100"
@@ -186,37 +302,52 @@ if (!token) {
               onChange={(event) =>
                 setScore(Number(event.target.value))
               }
+              disabled={loading}
               className="w-full accent-violet-500"
             />
+
+            <div className="mt-1 flex justify-between text-xs text-slate-700">
+              <span>Low</span>
+              <span>Critical</span>
+            </div>
           </div>
 
           <div>
-            <label className="mb-2 block text-xs font-medium text-slate-400">
+            <label
+              htmlFor="indicator-description"
+              className="mb-2 block text-sm font-medium text-slate-300"
+            >
               Description
+              <span className="ml-1 text-slate-600">
+                (optional)
+              </span>
             </label>
 
             <textarea
+              id="indicator-description"
               value={description}
               onChange={(event) =>
                 setDescription(event.target.value)
               }
-              placeholder="Optional threat context"
-              rows={3}
-              className="w-full resize-none rounded-xl border border-white/[0.08] bg-black/30 px-4 py-3 text-sm outline-none placeholder:text-slate-700 focus:border-violet-500/50"
+              placeholder="Add investigation notes or context..."
+              rows={4}
+              disabled={loading}
+              className="w-full resize-none rounded-xl border border-white/[0.08] bg-[#070a0f] px-4 py-3 text-sm text-white outline-none transition placeholder:text-slate-700 focus:border-violet-500/60 focus:ring-4 focus:ring-violet-500/10 disabled:opacity-60"
             />
           </div>
 
           {message && (
-            <p className="rounded-lg bg-red-500/10 px-3 py-2 text-xs text-red-400">
+            <div className="rounded-xl border border-red-500/20 bg-red-500/[0.08] px-4 py-3 text-sm text-red-300">
               {message}
-            </p>
+            </div>
           )}
 
-          <div className="flex justify-end gap-3 pt-2">
+          <footer className="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:justify-end">
             <button
               type="button"
-              onClick={onClose}
-              className="rounded-xl border border-white/[0.08] px-5 py-2.5 text-sm text-slate-400 hover:bg-white/5"
+              onClick={handleClose}
+              disabled={loading}
+              className="rounded-xl border border-white/[0.08] bg-white/[0.03] px-5 py-3 text-sm font-semibold text-slate-300 transition hover:bg-white/[0.07] disabled:opacity-50"
             >
               Cancel
             </button>
@@ -224,17 +355,23 @@ if (!token) {
             <button
               type="submit"
               disabled={loading}
-              className="flex items-center gap-2 rounded-xl bg-violet-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-violet-500 disabled:opacity-60"
+              className="flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-violet-600 to-purple-600 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-violet-950/30 transition hover:from-violet-500 hover:to-purple-500 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {loading && (
-                <Loader2 className="h-4 w-4 animate-spin" />
+              {loading ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Creating...
+                </>
+              ) : (
+                <>
+                  <ShieldPlus className="h-4 w-4" />
+                  Add indicator
+                </>
               )}
-
-              Save Indicator
             </button>
-          </div>
+          </footer>
         </form>
-      </div>
+      </section>
     </div>
   );
 }

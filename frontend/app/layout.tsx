@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import AuthGuard from "./components/AuthGuard";
+import GoogleAuthWrapper from "./components/GoogleAuthWrapper";
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
@@ -24,7 +25,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
 <body>
+<GoogleAuthWrapper>
   <AuthGuard>{children}</AuthGuard>
+</GoogleAuthWrapper>
 </body>
     </html>
   );
