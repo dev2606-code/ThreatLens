@@ -103,7 +103,7 @@ export default function IndicatorsPage() {
     }
 
     setDeletingId(indicator.id);
-const token = localStorage.getItem("threatlens_token");
+const token = localStorage.getItem("threatlens_access_token");
 
 if (!token) {
   window.location.href = "/login";

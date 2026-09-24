@@ -14,4 +14,7 @@ frontend/.env.local
 
 # Editors
 .vscode/
-*.db
+*.db.env
+
+.env
+threatlens.db

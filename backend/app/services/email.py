@@ -1,7 +1,9 @@
 import os
 import smtplib
 from email.message import EmailMessage
+from dotenv import load_dotenv
 
+load_dotenv("/Users/devendrasinha/Desktop/ThreatLens/.env")
 
 SMTP_HOST = os.getenv("SMTP_HOST", "smtp.gmail.com")
 SMTP_PORT = int(os.getenv("SMTP_PORT", "465"))

@@ -2,60 +2,76 @@
 
 import Link from "next/link";
 import { FormEvent, useState } from "react";
-import {
-  ArrowLeft,
-  CheckCircle2,
-  Loader2,
-  Mail,
-  ShieldCheck,
-} from "lucide-react";
+import { Loader2, LockKeyhole, ShieldCheck, User } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 const API_URL =
   process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8000";
 
-export default function ForgotPasswordPage() {
-  const [email, setEmail] = useState("");
-  const [message, setMessage] = useState("");
+export default function LoginPage() {
+  const router = useRouter();
+
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    setMessage("");
     setError("");
     setIsLoading(true);
 
     try {
-      const response = await fetch(
-        `${API_URL}/api/auth/forgot-password`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ email }),
-        },
-      );
+      const formData = new URLSearchParams();
+
+formData.append("grant_type", "password");
+formData.append("username", username);
+formData.append("password", password);
+
+const response = await fetch(`${API_URL}/api/auth/login`, {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/x-www-form-urlencoded",
+  },
+  body: formData.toString(),
+});
 
       const data = await response.json().catch(() => null);
 
-      if (!response.ok) {
-        throw new Error(
-          data?.detail ?? "Password reset request failed.",
-        );
-      }
+ if (!response.ok) {
+  const detail = data?.detail;
 
-      setMessage(
-        data?.message ??
-          "If this email is registered, a reset link has been sent.",
-      );
-      setEmail("");
+  let message = "Invalid username or password.";
+
+  if (typeof detail === "string") {
+    message = detail;
+  } else if (Array.isArray(detail)) {
+    message = detail
+      .map((item) => {
+        if (typeof item === "string") {
+          return item;
+        }
+
+        return item?.msg ?? "Invalid login request.";
+      })
+      .join(", ");
+  }
+
+  throw new Error(message);
+}
+if (data?.access_token) {
+  localStorage.setItem("threatlens_access_token", data.access_token);
+
+
+}
+window.location.href = "/";
+
     } catch (requestError) {
       setError(
         requestError instanceof Error
           ? requestError.message
-          : "Backend server is not available.",
+          : "Unable to sign in.",
       );
     } finally {
       setIsLoading(false);
@@ -73,96 +89,95 @@ export default function ForgotPasswordPage() {
           </div>
 
           <h1 className="text-2xl font-bold tracking-tight">
-            Forgot password?
+            Welcome back
           </h1>
 
           <p className="mt-2 text-sm leading-6 text-slate-500">
-            Enter your registered email and we will send you a
-            secure password-reset link.
+            Sign in to your ThreatLens account.
           </p>
         </div>
 
-        {message ? (
-          <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/[0.08] p-5">
-            <div className="flex items-start gap-3">
-              <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-400" />
-
-              <div>
-                <p className="font-medium text-emerald-300">
-                  Check your email
-                </p>
-                <p className="mt-1 text-sm leading-6 text-slate-400">
-                  {message}
-                </p>
-              </div>
-            </div>
-
-            <Link
-              href="/login"
-              className="mt-5 flex w-full items-center justify-center rounded-xl border border-white/[0.08] bg-white/[0.04] px-4 py-3 text-sm font-semibold text-slate-200 transition hover:bg-white/[0.08]"
+        <form onSubmit={handleSubmit} className="space-y-5">
+          <div>
+            <label
+              htmlFor="username"
+              className="mb-2 block text-sm font-medium text-slate-300"
             >
-              Return to sign in
+              Username
+            </label>
+
+            <div className="relative">
+              <User className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-600" />
+
+              <input
+                id="username"
+                type="text"
+                value={username}
+                onChange={(event) => setUsername(event.target.value)}
+                placeholder="Enter your username"
+                autoComplete="username"
+                required
+                disabled={isLoading}
+                className="h-14 w-full rounded-xl border border-white/[0.08] bg-[#070a0f] pl-12 pr-4 text-sm text-white outline-none transition placeholder:text-slate-700 focus:border-violet-500/60 focus:ring-4 focus:ring-violet-500/10 disabled:opacity-60"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label
+              htmlFor="password"
+              className="mb-2 block text-sm font-medium text-slate-300"
+            >
+              Password
+            </label>
+
+            <div className="relative">
+              <LockKeyhole className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-600" />
+
+              <input
+                id="password"
+                type="password"
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                placeholder="Enter your password"
+                autoComplete="current-password"
+                required
+                disabled={isLoading}
+                className="h-14 w-full rounded-xl border border-white/[0.08] bg-[#070a0f] pl-12 pr-4 text-sm text-white outline-none transition placeholder:text-slate-700 focus:border-violet-500/60 focus:ring-4 focus:ring-violet-500/10 disabled:opacity-60"
+              />
+            </div>
+          </div>
+
+          {error && (
+            <div className="rounded-xl border border-red-500/20 bg-red-500/[0.08] px-4 py-3 text-sm text-red-300">
+              {error}
+            </div>
+          )}
+
+          <div className="flex justify-end">
+            <Link
+              href="/forgot-password"
+              className="text-sm text-slate-500 transition hover:text-violet-300"
+            >
+              Forgot password?
             </Link>
           </div>
-        ) : (
-          <form onSubmit={handleSubmit} className="space-y-5">
-            <div>
-              <label
-                htmlFor="email"
-                className="mb-2 block text-sm font-medium text-slate-300"
-              >
-                Email address
-              </label>
 
-              <div className="relative">
-                <Mail className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-600" />
-
-                <input
-                  id="email"
-                  type="email"
-                  value={email}
-                  onChange={(event) => setEmail(event.target.value)}
-                  placeholder="you@example.com"
-                  autoComplete="email"
-                  required
-                  disabled={isLoading}
-                  className="h-14 w-full rounded-xl border border-white/[0.08] bg-[#070a0f] pl-12 pr-4 text-sm text-white outline-none transition placeholder:text-slate-700 focus:border-violet-500/60 focus:ring-4 focus:ring-violet-500/10 disabled:opacity-60"
-                />
-              </div>
-            </div>
-
-            {error && (
-              <div className="rounded-xl border border-red-500/20 bg-red-500/[0.08] px-4 py-3 text-sm text-red-300">
-                {error}
-              </div>
-            )}
-
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="flex h-14 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-violet-600 to-purple-600 px-4 font-semibold text-white shadow-lg shadow-violet-950/30 transition hover:from-violet-500 hover:to-purple-500 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {isLoading ? (
-                <>
-                  <Loader2 className="h-5 w-5 animate-spin" />
-                  Sending link...
-                </>
-              ) : (
-                "Send reset link"
-              )}
-            </button>
-          </form>
-        )}
-
-        {!message && (
-          <Link
-            href="/login"
-            className="mt-6 flex items-center justify-center gap-2 text-sm text-slate-500 transition hover:text-violet-300"
+          <button
+            type="submit"
+            disabled={isLoading}
+            className="flex h-14 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-violet-600 to-purple-600 px-4 font-semibold text-white shadow-lg shadow-violet-950/30 transition hover:from-violet-500 hover:to-purple-500 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            <ArrowLeft className="h-4 w-4" />
-            Back to sign in
-          </Link>
-        )}
+            {isLoading ? (
+              <>
+                <Loader2 className="h-5 w-5 animate-spin" />
+                Signing in...
+              </>
+            ) : (
+              "Sign in"
+            )}
+          </button>
+        </form>
       </section>
     </main>
   );

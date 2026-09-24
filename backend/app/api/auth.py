@@ -35,7 +35,7 @@ from backend.app.schemas.user import (
     UserResponse,
 )
 from backend.app.services.email import send_email
-
+logger = logging.getLogger(__name__)
 
 router = APIRouter(
     prefix="/api/auth",
@@ -45,7 +45,6 @@ router = APIRouter(
 oauth2_scheme = OAuth2PasswordBearer(
     tokenUrl="/api/auth/login",
 )
-
 FRONTEND_URL = os.getenv(
     "FRONTEND_URL",
     "http://localhost:3000",
@@ -182,7 +181,13 @@ def register_user(
             subject="Verify your ThreatLens account",
             html_content=email_content,
         )
-    except Exception:
+
+    except Exception as error:
+        logger.exception(
+            "Verification email delivery failed: %s",
+            type(error).__name__,
+        )
+
         database.delete(verification_token)
         database.delete(user)
         database.commit()
@@ -190,7 +195,7 @@ def register_user(
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Verification email could not be sent",
-        )
+        ) from error
 
     return {
         "message": (
@@ -198,7 +203,6 @@ def register_user(
             "to activate it."
         ),
     }
-
 
 @router.post(
     "/verify-email",
@@ -248,6 +252,166 @@ def verify_email(
 
     return {
         "message": "Email verified successfully",
+    }
+@router.post(
+    "/forgot-password",
+    response_model=MessageResponse,
+)
+def forgot_password(
+    request_data: ForgotPasswordRequest,
+    database: Session = Depends(get_database),
+):
+    email = str(request_data.email).strip().lower()
+
+    user = (
+        database.query(User)
+        .filter(User.email == email)
+        .first()
+    )
+
+    # Always return the same message so the endpoint
+    # does not reveal whether an email is registered.
+    success_message = (
+        "If an account with that email exists, "
+        "a password reset link has been sent."
+    )
+
+    if user is None:
+        return {"message": success_message}
+
+    raw_token, token_hash = generate_one_time_token()
+
+    reset_token = AuthToken(
+        user_id=user.id,
+        token_hash=token_hash,
+        purpose="password_reset",
+        expires_at=(
+            datetime.now(timezone.utc)
+            + timedelta(
+                minutes=PASSWORD_RESET_MINUTES,
+            )
+        ),
+    )
+
+    database.add(reset_token)
+    database.commit()
+
+    reset_url = (
+        f"{FRONTEND_URL}/reset-password"
+        f"?token={raw_token}"
+    )
+
+    safe_username = html.escape(user.username)
+    safe_url = html.escape(
+        reset_url,
+        quote=True,
+    )
+
+    email_content = f"""
+    <div style="font-family:Arial,sans-serif;
+                max-width:560px;margin:auto;
+                padding:32px;background:#080c14;
+                color:#e2e8f0;border-radius:16px;">
+      <h2 style="color:#a78bfa;">
+        Reset your ThreatLens password
+      </h2>
+
+      <p>Hello {safe_username},</p>
+
+      <p>
+        We received a request to reset your
+        ThreatLens account password.
+      </p>
+
+      <a href="{safe_url}"
+         style="display:inline-block;
+                margin:20px 0;padding:12px 20px;
+                background:#7c3aed;color:white;
+                text-decoration:none;border-radius:10px;">
+        Reset password
+      </a>
+
+      <p style="font-size:12px;color:#64748b;">
+        This link expires in 15 minutes and can
+        only be used once.
+      </p>
+    </div>
+    """
+
+    try:
+        send_email(
+            recipient=user.email,
+            subject="Reset your ThreatLens password",
+            html_content=email_content,
+        )
+    except Exception as error:
+        logger.exception(
+            "Password reset email delivery failed: %s",
+            type(error).__name__,
+        )
+
+        database.delete(reset_token)
+        database.commit()
+
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Password reset email could not be sent",
+        ) from error
+
+    return {"message": success_message}
+
+
+@router.post(
+    "/reset-password",
+    response_model=MessageResponse,
+)
+def reset_password(
+    request_data: ResetPasswordRequest,
+    database: Session = Depends(get_database),
+):
+    token_hash = hash_one_time_token(
+        request_data.token,
+    )
+
+    auth_token = (
+        database.query(AuthToken)
+        .filter(
+            AuthToken.token_hash == token_hash,
+            AuthToken.purpose == "password_reset",
+            AuthToken.used_at.is_(None),
+        )
+        .first()
+    )
+
+    if auth_token is None or token_has_expired(
+        auth_token
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Password reset link is invalid or expired",
+        )
+
+    user = database.get(
+        User,
+        auth_token.user_id,
+    )
+
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found",
+        )
+
+    user.hashed_password = hash_password(
+        request_data.new_password,
+    )
+
+    auth_token.used_at = datetime.now(timezone.utc)
+
+    database.commit()
+
+    return {
+        "message": "Your password has been reset successfully.",
     }
 @router.post(
     "/google",

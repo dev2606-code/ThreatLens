@@ -93,9 +93,9 @@ export default function AddIndicatorModal({
     setMessage("");
 
     try {
-      const token = localStorage.getItem(
-        "threatlens_token",
-      );
+    const token = localStorage.getItem(
+  "threatlens_access_token",
+);
 
       if (!token) {
         throw new Error(

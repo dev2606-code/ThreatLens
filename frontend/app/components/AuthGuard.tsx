@@ -54,7 +54,7 @@ export default function AuthGuard({
       }
 
       const token = localStorage.getItem(
-        "threatlens_token",
+        "threatlens_access_token"
       );
 
       if (!token) {
@@ -79,13 +79,13 @@ export default function AuthGuard({
         if (active) {
           setChecking(false);
         }
-      } catch {
-        localStorage.removeItem("threatlens_token");
+     } catch {
+  localStorage.removeItem("threatlens_access_token");
 
-        if (active) {
-          router.replace("/login");
-        }
-      }
+  if (active) {
+    router.replace("/login");
+  }
+}
     }
 
     void checkAuthentication();
@@ -119,9 +119,9 @@ export default function AuthGuard({
         <button
           type="button"
           onClick={() => {
-            localStorage.removeItem(
-              "threatlens_token",
-            );
+          localStorage.removeItem(
+  "threatlens_access_token",
+);
             router.replace("/login");
           }}
           className="fixed bottom-5 right-5 z-[100] flex items-center gap-2 rounded-xl border border-red-500/20 bg-[#080c14] px-4 py-2.5 text-sm text-red-400 shadow-xl transition hover:bg-red-500/10"
