@@ -28,7 +28,7 @@ const API_URL =
 
 export default function AlertsPage() {
   const [indicators, setIndicators] = useState<Indicator[]>([]);
-  const [acknowledged, setAcknowledged] = useState<number[]>([]);
+
   const [filter, setFilter] = useState("All");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -84,13 +84,32 @@ export default function AlertsPage() {
     (alert) => alert.severity.toLowerCase() === "high",
   ).length;
 
-  function toggleAcknowledged(id: number) {
-    setAcknowledged((current) =>
-      current.includes(id)
-        ? current.filter((alertId) => alertId !== id)
-        : [...current, id],
+async function toggleAcknowledged(
+  id: number,
+  currentStatus: string,
+) {
+  try {
+    const newStatus =
+      currentStatus === "Acknowledged"
+        ? "Active"
+        : "Acknowledged";
+
+    const response = await fetch(
+      `${API_URL}/api/indicators/${id}/status?new_status=${encodeURIComponent(newStatus)}`,
+      {
+        method: "PATCH",
+      },
     );
+
+    if (!response.ok) {
+      throw new Error("Status update failed");
+    }
+
+    await loadAlerts();
+  } catch {
+    setError("Alert status update failed.");
   }
+}
 
   return (
     <main className="min-h-screen bg-[#07090d] text-slate-100">
@@ -207,7 +226,8 @@ export default function AlertsPage() {
                 const isCritical =
                   alert.severity.toLowerCase() === "critical";
 
-                const isAcknowledged = acknowledged.includes(alert.id);
+            const isAcknowledged =
+  alert.status === "Acknowledged";
 
                 return (
                   <article
@@ -265,7 +285,12 @@ export default function AlertsPage() {
 
                       <button
                         type="button"
-                        onClick={() => toggleAcknowledged(alert.id)}
+                       onClick={() =>
+                       void toggleAcknowledged(
+    alert.id,
+    alert.status,
+  )
+}
                         className={`flex shrink-0 items-center justify-center gap-2 rounded-xl border px-4 py-3 text-sm ${
                           isAcknowledged
                             ? "border-white/10 text-slate-400"
@@ -289,6 +314,7 @@ export default function AlertsPage() {
     </main>
   );
 }
+
 
 function StatCard({
   title,
