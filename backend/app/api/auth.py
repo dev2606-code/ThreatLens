@@ -1,17 +1,22 @@
 import html
+import logging
 import os
+from pathlib import Path
+from dotenv import load_dotenv
+
+BASE_DIR = Path(__file__).resolve().parents[3]
+load_dotenv(BASE_DIR / ".env")
 from datetime import datetime, timedelta, timezone
 from typing import Optional
-import logging
+
 import jwt
 from fastapi import APIRouter, Depends, HTTPException, status
-from fastapi.security import (
-    OAuth2PasswordBearer,
-    OAuth2PasswordRequestForm,
-)
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
+
 from google.auth.transport import requests as google_requests
 from google.oauth2 import id_token
+
 from backend.app.core.database import get_database
 from backend.app.core.security import (
     ALGORITHM,
@@ -35,8 +40,12 @@ from backend.app.schemas.user import (
     UserResponse,
 )
 from backend.app.services.email import send_email
+
+
 logger = logging.getLogger(__name__)
 
+# IMPORTANT:
+# router must be created BEFORE any @router.post / @router.get decorators.
 router = APIRouter(
     prefix="/api/auth",
     tags=["Authentication"],
@@ -45,6 +54,7 @@ router = APIRouter(
 oauth2_scheme = OAuth2PasswordBearer(
     tokenUrl="/api/auth/login",
 )
+
 FRONTEND_URL = os.getenv(
     "FRONTEND_URL",
     "http://localhost:3000",
@@ -52,10 +62,16 @@ FRONTEND_URL = os.getenv(
 
 EMAIL_VERIFICATION_MINUTES = 30
 PASSWORD_RESET_MINUTES = 15
+
 GOOGLE_CLIENT_ID = os.getenv(
     "GOOGLE_CLIENT_ID",
     "",
 )
+
+
+# ============================================================
+# HELPERS
+# ============================================================
 
 def token_has_expired(auth_token: AuthToken) -> bool:
     expires_at = auth_token.expires_at
@@ -68,6 +84,59 @@ def token_has_expired(auth_token: AuthToken) -> bool:
     return expires_at <= datetime.now(timezone.utc)
 
 
+def create_auth_token(
+    database: Session,
+    user_id: int,
+    purpose: str,
+    minutes: int,
+) -> str:
+    raw_token = generate_one_time_token()
+    token_hash = hash_one_time_token(raw_token)
+
+    auth_token = AuthToken(
+        user_id=user_id,
+        token_hash=token_hash,
+        purpose=purpose,
+        expires_at=datetime.now(timezone.utc)
+        + timedelta(minutes=minutes),
+    )
+
+    database.add(auth_token)
+    database.commit()
+
+    return raw_token
+
+
+def get_valid_auth_token(
+    database: Session,
+    raw_token: str,
+    purpose: str,
+) -> Optional[AuthToken]:
+
+    token_hash = hash_one_time_token(raw_token)
+
+    auth_token = (
+        database.query(AuthToken)
+        .filter(
+            AuthToken.token_hash == token_hash,
+            AuthToken.purpose == purpose,
+        )
+        .first()
+    )
+
+    if auth_token is None:
+        return None
+
+    if token_has_expired(auth_token):
+        return None
+
+    return auth_token
+
+
+# ============================================================
+# REGISTER
+# ============================================================
+
 @router.post(
     "/register",
     response_model=MessageResponse,
@@ -78,7 +147,7 @@ def register_user(
     database: Session = Depends(get_database),
 ):
     username = user_data.username.strip()
-    email = str(user_data.email).strip().lower()
+    email = user_data.email.strip().lower()
 
     existing_username = (
         database.query(User)
@@ -88,8 +157,8 @@ def register_user(
 
     if existing_username:
         raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Username already exists",
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Username already exists.",
         )
 
     existing_email = (
@@ -100,16 +169,14 @@ def register_user(
 
     if existing_email:
         raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Email already exists",
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Email already registered.",
         )
 
     user = User(
         username=username,
         email=email,
-        hashed_password=hash_password(
-            user_data.password,
-        ),
+        hashed_password=hash_password(user_data.password),
         is_active=False,
     )
 
@@ -117,92 +184,64 @@ def register_user(
     database.commit()
     database.refresh(user)
 
-    raw_token, token_hash = generate_one_time_token()
-
-    verification_token = AuthToken(
+    verification_token = create_auth_token(
+        database=database,
         user_id=user.id,
-        token_hash=token_hash,
         purpose="email_verification",
-        expires_at=(
-            datetime.now(timezone.utc)
-            + timedelta(
-                minutes=EMAIL_VERIFICATION_MINUTES,
-            )
-        ),
+        minutes=EMAIL_VERIFICATION_MINUTES,
     )
-
-    database.add(verification_token)
-    database.commit()
 
     verification_url = (
         f"{FRONTEND_URL}/verify-email"
-        f"?token={raw_token}"
+        f"?token={verification_token}"
     )
 
-    safe_username = html.escape(user.username)
-    safe_url = html.escape(
-        verification_url,
-        quote=True,
-    )
+    email_body = f"""
+    <html>
+        <body>
+            <h2>Verify your ThreatLens account</h2>
 
-    email_content = f"""
-    <div style="font-family:Arial,sans-serif;
-                max-width:560px;margin:auto;
-                padding:32px;background:#080c14;
-                color:#e2e8f0;border-radius:16px;">
-      <h2 style="color:#a78bfa;">
-        Verify your ThreatLens account
-      </h2>
+            <p>Hello {html.escape(username)},</p>
 
-      <p>Hello {safe_username},</p>
+            <p>
+                Thank you for registering with ThreatLens.
+                Please verify your email address.
+            </p>
 
-      <p>
-        Confirm your email address to activate your
-        ThreatLens account.
-      </p>
+            <p>
+                <a href="{html.escape(verification_url)}">
+                    Verify Email
+                </a>
+            </p>
 
-      <a href="{safe_url}"
-         style="display:inline-block;
-                margin:20px 0;padding:12px 20px;
-                background:#7c3aed;color:white;
-                text-decoration:none;border-radius:10px;">
-        Verify email
-      </a>
-
-      <p style="font-size:12px;color:#64748b;">
-        This link expires in 30 minutes.
-      </p>
-    </div>
+            <p>
+                This link will expire in
+                {EMAIL_VERIFICATION_MINUTES} minutes.
+            </p>
+        </body>
+    </html>
     """
 
     try:
         send_email(
-            recipient=user.email,
+            to_email=email,
             subject="Verify your ThreatLens account",
-            html_content=email_content,
+            html_body=email_body,
         )
-
-    except Exception as error:
+    except Exception as exc:
         logger.exception(
-            "Verification email delivery failed: %s",
-            type(error).__name__,
+            "Email verification delivery failed: %s",
+            exc,
         )
-
-        database.delete(verification_token)
-        database.delete(user)
-        database.commit()
-
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Verification email could not be sent",
-        ) from error
 
     return {
-        "message": (
-            "Account created. Check your email "
-            "to activate it."
-        ),
+        "message": "Registration successful. Please verify your email."
     }
+
+
+# ============================================================
+# VERIFY EMAIL
+# ============================================================
 
 @router.post(
     "/verify-email",
@@ -212,26 +251,16 @@ def verify_email(
     request_data: EmailVerificationRequest,
     database: Session = Depends(get_database),
 ):
-    token_hash = hash_one_time_token(
-        request_data.token,
+    auth_token = get_valid_auth_token(
+        database=database,
+        raw_token=request_data.token,
+        purpose="email_verification",
     )
 
-    auth_token = (
-        database.query(AuthToken)
-        .filter(
-            AuthToken.token_hash == token_hash,
-            AuthToken.purpose == "email_verification",
-            AuthToken.used_at.is_(None),
-        )
-        .first()
-    )
-
-    if auth_token is None or token_has_expired(
-        auth_token
-    ):
+    if auth_token is None:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Verification link is invalid or expired",
+            detail="Verification link is invalid or expired.",
         )
 
     user = database.get(
@@ -242,17 +271,23 @@ def verify_email(
     if user is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="User not found",
+            detail="User not found.",
         )
 
     user.is_active = True
-    auth_token.used_at = datetime.now(timezone.utc)
 
+    database.delete(auth_token)
     database.commit()
 
     return {
-        "message": "Email verified successfully",
+        "message": "Email verified successfully."
     }
+
+
+# ============================================================
+# FORGOT PASSWORD
+# ============================================================
+
 @router.post(
     "/forgot-password",
     response_model=MessageResponse,
@@ -261,7 +296,7 @@ def forgot_password(
     request_data: ForgotPasswordRequest,
     database: Session = Depends(get_database),
 ):
-    email = str(request_data.email).strip().lower()
+    email = request_data.email.strip().lower()
 
     user = (
         database.query(User)
@@ -269,97 +304,78 @@ def forgot_password(
         .first()
     )
 
-    # Always return the same message so the endpoint
-    # does not reveal whether an email is registered.
-    success_message = (
-        "If an account with that email exists, "
-        "a password reset link has been sent."
-    )
-
+    # Do not reveal whether the email exists.
     if user is None:
-        return {"message": success_message}
+        return {
+            "message": "If the account exists, a password reset link has been sent."
+        }
 
-    raw_token, token_hash = generate_one_time_token()
-
-    reset_token = AuthToken(
+    reset_token = create_auth_token(
+        database=database,
         user_id=user.id,
-        token_hash=token_hash,
         purpose="password_reset",
-        expires_at=(
-            datetime.now(timezone.utc)
-            + timedelta(
-                minutes=PASSWORD_RESET_MINUTES,
-            )
-        ),
+        minutes=PASSWORD_RESET_MINUTES,
     )
-
-    database.add(reset_token)
-    database.commit()
 
     reset_url = (
         f"{FRONTEND_URL}/reset-password"
-        f"?token={raw_token}"
+        f"?token={reset_token}"
     )
 
-    safe_username = html.escape(user.username)
-    safe_url = html.escape(
-        reset_url,
-        quote=True,
-    )
+    email_body = f"""
+    <html>
+        <body>
+            <h2>Reset your ThreatLens password</h2>
 
-    email_content = f"""
-    <div style="font-family:Arial,sans-serif;
-                max-width:560px;margin:auto;
-                padding:32px;background:#080c14;
-                color:#e2e8f0;border-radius:16px;">
-      <h2 style="color:#a78bfa;">
-        Reset your ThreatLens password
-      </h2>
+            <p>
+                We received a request to reset your
+                ThreatLens account password.
+            </p>
 
-      <p>Hello {safe_username},</p>
+            <p>
+                <a href="{html.escape(reset_url)}">
+                    Reset Password
+                </a>
+            </p>
 
-      <p>
-        We received a request to reset your
-        ThreatLens account password.
-      </p>
+            <p>
+                This link will expire in
+                {PASSWORD_RESET_MINUTES} minutes.
+            </p>
 
-      <a href="{safe_url}"
-         style="display:inline-block;
-                margin:20px 0;padding:12px 20px;
-                background:#7c3aed;color:white;
-                text-decoration:none;border-radius:10px;">
-        Reset password
-      </a>
-
-      <p style="font-size:12px;color:#64748b;">
-        This link expires in 15 minutes and can
-        only be used once.
-      </p>
-    </div>
+            <p>
+                If you did not request this,
+                you can safely ignore this email.
+            </p>
+        </body>
+    </html>
     """
 
     try:
         send_email(
-            recipient=user.email,
+            to_email=email,
             subject="Reset your ThreatLens password",
-            html_content=email_content,
+            html_body=email_body,
         )
-    except Exception as error:
+    except Exception as exc:
         logger.exception(
             "Password reset email delivery failed: %s",
-            type(error).__name__,
+            exc,
         )
 
-        database.delete(reset_token)
-        database.commit()
-
         raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Password reset email could not be sent",
-        ) from error
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Password reset email could not be sent.",
+        )
 
-    return {"message": success_message}
+    return {
+        "message": "If the account exists, a password reset link has been sent."
+    }
 
+
+# ============================================================
+# RESET PASSWORD
+# ============================================================
 
 @router.post(
     "/reset-password",
@@ -369,26 +385,22 @@ def reset_password(
     request_data: ResetPasswordRequest,
     database: Session = Depends(get_database),
 ):
-    token_hash = hash_one_time_token(
-        request_data.token,
+    auth_token = get_valid_auth_token(
+        database=database,
+        raw_token=request_data.token,
+        purpose="password_reset",
     )
 
-    auth_token = (
-        database.query(AuthToken)
-        .filter(
-            AuthToken.token_hash == token_hash,
-            AuthToken.purpose == "password_reset",
-            AuthToken.used_at.is_(None),
-        )
-        .first()
-    )
-
-    if auth_token is None or token_has_expired(
-        auth_token
-    ):
+    if auth_token is None:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Password reset link is invalid or expired",
+            detail="Password reset link is invalid or expired.",
+        )
+
+    if len(request_data.new_password) < 8:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Password must be at least 8 characters.",
         )
 
     user = database.get(
@@ -399,20 +411,25 @@ def reset_password(
     if user is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="User not found",
+            detail="User not found.",
         )
 
     user.hashed_password = hash_password(
-        request_data.new_password,
+        request_data.new_password
     )
 
-    auth_token.used_at = datetime.now(timezone.utc)
-
+    database.delete(auth_token)
     database.commit()
 
     return {
-        "message": "Your password has been reset successfully.",
+        "message": "Your password has been reset successfully."
     }
+
+
+# ============================================================
+# GOOGLE LOGIN
+# ============================================================
+
 @router.post(
     "/google",
     response_model=TokenResponse,
@@ -423,8 +440,8 @@ def google_login(
 ):
     if not GOOGLE_CLIENT_ID:
         raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Google login is not configured",
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Google authentication is not configured.",
         )
 
     try:
@@ -433,54 +450,52 @@ def google_login(
             google_requests.Request(),
             GOOGLE_CLIENT_ID,
         )
-    except ValueError:
+    except Exception:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid Google credential",
+            detail="Invalid Google credential.",
         )
 
-    email = str(
-        google_user.get("email", "")
-    ).strip().lower()
+    google_email = google_user.get("email")
 
-    email_verified = google_user.get(
-        "email_verified",
-        False,
-    )
-
-    if not email or not email_verified:
+    if not google_email:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Google email is not verified",
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Google account email was not provided.",
         )
+
+    google_email = google_email.strip().lower()
 
     user = (
         database.query(User)
-        .filter(User.email == email)
+        .filter(User.email == google_email)
         .first()
     )
 
     if user is None:
-        google_subject = str(
-            google_user.get("sub", "")
+        google_name = (
+            google_user.get("name")
+            or google_email.split("@")[0]
         )
 
-        base_username = (
-            email.split("@")[0]
-            .replace(".", "_")
-            .replace("-", "_")
+        username = google_name.strip()
+
+        existing_username = (
+            database.query(User)
+            .filter(User.username == username)
+            .first()
         )
 
-        username = (
-            f"{base_username}_"
-            f"{google_subject[-6:]}"
-        )
+        if existing_username:
+            username = (
+                google_email.split("@")[0]
+            )
 
         user = User(
-            username=username[:50],
-            email=email,
+            username=username,
+            email=google_email,
             hashed_password=hash_password(
-                generate_one_time_token()[0]
+                generate_one_time_token()
             ),
             is_active=True,
         )
@@ -489,16 +504,68 @@ def google_login(
         database.commit()
         database.refresh(user)
 
-    elif not user.is_active:
-        user.is_active = True
-        database.commit()
+    else:
+        if not user.is_active:
+            user.is_active = True
+            database.commit()
 
-    access_token = create_access_token(user.id)
+    token = create_access_token(user.id)
 
     return {
-        "access_token": access_token,
+        "access_token": token,
         "token_type": "bearer",
     }
+
+
+# ============================================================
+# CHANGE PASSWORD
+# ============================================================
+
+@router.post(
+    "/change-password",
+    response_model=MessageResponse,
+)
+def change_password(
+    current_password: str,
+    new_password: str,
+    database: Session = Depends(get_database),
+    current_user: User = Depends(
+        lambda token=Depends(oauth2_scheme),
+        database=Depends(get_database): get_current_user(
+            token,
+            database,
+        )
+    ),
+):
+    if not verify_password(
+        current_password,
+        current_user.hashed_password,
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Current password is incorrect.",
+        )
+
+    if len(new_password) < 8:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="New password must be at least 8 characters.",
+        )
+
+    current_user.hashed_password = hash_password(
+        new_password
+    )
+
+    database.commit()
+
+    return {
+        "message": "Password changed successfully."
+    }
+
+
+# ============================================================
+# LOGIN
+# ============================================================
 
 @router.post(
     "/login",
@@ -521,7 +588,9 @@ def login_user(
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect username or password",
-            headers={"WWW-Authenticate": "Bearer"},
+            headers={
+                "WWW-Authenticate": "Bearer"
+            },
         )
 
     if not user.is_active:
@@ -538,14 +607,19 @@ def login_user(
     }
 
 
+# ============================================================
+# CURRENT USER
+# ============================================================
 def get_current_user(
     token: str = Depends(oauth2_scheme),
     database: Session = Depends(get_database),
 ) -> User:
-    credentials_error = HTTPException(
+    credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Invalid or expired authentication token",
-        headers={"WWW-Authenticate": "Bearer"},
+        detail="Could not validate credentials.",
+        headers={
+            "WWW-Authenticate": "Bearer"
+        },
     )
 
     try:
@@ -555,28 +629,44 @@ def get_current_user(
             algorithms=[ALGORITHM],
         )
 
-        subject: Optional[str] = payload.get("sub")
+        user_id = payload.get("sub")
 
-        if subject is None:
-            raise credentials_error
+        if user_id is None:
+            raise credentials_exception
 
-        user_id = int(subject)
-    except (jwt.InvalidTokenError, ValueError):
-        raise credentials_error
+        user_id = int(user_id)
 
-    user = database.get(User, user_id)
+    except (
+        jwt.PyJWTError,
+        ValueError,
+        TypeError,
+    ):
+        raise credentials_exception
 
-    if user is None or not user.is_active:
-        raise credentials_error
+    user = database.get(
+        User,
+        user_id,
+    )
+
+    if user is None:
+        raise credentials_exception
 
     return user
 
+
+# ============================================================
+# CURRENT USER ENDPOINT
+# ============================================================
 
 @router.get(
     "/me",
     response_model=UserResponse,
 )
 def read_current_user(
-    current_user: User = Depends(get_current_user),
+    token: str = Depends(oauth2_scheme),
+    database: Session = Depends(get_database),
 ):
-    return current_user
+    return get_current_user(
+        token,
+        database,
+    )

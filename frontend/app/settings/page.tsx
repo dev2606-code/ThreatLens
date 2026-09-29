@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+
 import {
   useEffect,
   useState,
@@ -34,6 +35,12 @@ export default function SettingsPage() {
   const [feedAlerts, setFeedAlerts] = useState(true);
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [refreshInterval, setRefreshInterval] = useState("30");
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [passwordLoading, setPasswordLoading] = useState(false);
+  const [passwordMessage, setPasswordMessage] = useState("");
+  const [passwordError, setPasswordError] = useState("");
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
@@ -56,6 +63,69 @@ export default function SettingsPage() {
       localStorage.removeItem("threatlens-settings");
     }
   }, []);
+
+  async function changePassword() {
+    setPasswordMessage("");
+    setPasswordError("");
+
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      setPasswordError("Please fill in all password fields.");
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      setPasswordError("New passwords do not match.");
+      return;
+    }
+
+    if (newPassword.length < 8) {
+      setPasswordError("New password must be at least 8 characters.");
+      return;
+    }
+
+    const token = localStorage.getItem("threatlens_access_token");
+
+    if (!token) {
+      setPasswordError("You are not authenticated. Please log in again.");
+      return;
+    }
+
+    setPasswordLoading(true);
+
+    try {
+      const response = await fetch(`${apiUrl}/api/auth/change-password`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          current_password: currentPassword,
+          new_password: newPassword,
+        }),
+      });
+
+      const data = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        throw new Error(data?.detail ?? "Unable to change password.");
+      }
+
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+
+      setPasswordMessage(data?.message ?? "Password changed successfully.");
+    } catch (error) {
+      setPasswordError(
+        error instanceof Error
+          ? error.message
+          : "Unable to change password.",
+      );
+    } finally {
+      setPasswordLoading(false);
+    }
+  }
 
   function saveSettings() {
     localStorage.setItem(
@@ -108,8 +178,7 @@ export default function SettingsPage() {
           </Link>
         </div>
       </header>
-
-      <section className="mx-auto max-w-6xl px-6 py-10">
+<section className="w-full px-6 py-10">
         <div className="mb-8">
           <p className="mb-3 flex items-center gap-2 text-sm font-semibold tracking-[0.2em] text-violet-400">
             <Settings className="h-4 w-4" />
@@ -130,57 +199,9 @@ export default function SettingsPage() {
           </div>
         )}
 
-        <div className="space-y-6">
-          <SettingsSection
-            icon={<User className="h-5 w-5 text-violet-400" />}
-            title="Analyst profile"
-            description="Manage the analyst information shown in ThreatLens."
-          >
-            <div className="grid gap-5 md:grid-cols-2">
-              <InputField
-                label="Analyst name"
-                value={analystName}
-                onChange={setAnalystName}
-                placeholder="Enter analyst name"
-              />
-
-              <InputField
-                label="Email address"
-                value={email}
-                onChange={setEmail}
-                placeholder="Enter email address"
-                type="email"
-              />
-            </div>
-          </SettingsSection>
-
-          <SettingsSection
-            icon={<Server className="h-5 w-5 text-blue-400" />}
-            title="API configuration"
-            description="Configure the FastAPI backend connection."
-          >
-            <InputField
-              label="Backend API URL"
-              value={apiUrl}
-              onChange={setApiUrl}
-              placeholder="http://127.0.0.1:8000"
-            />
-
-            <div className="mt-4 flex items-start gap-3 rounded-xl border border-blue-500/20 bg-blue-500/[0.06] p-4">
-              <Database className="mt-0.5 h-5 w-5 shrink-0 text-blue-400" />
-
-              <div>
-                <p className="text-sm font-medium text-blue-300">
-                  Local database connection
-                </p>
-
-                <p className="mt-1 text-xs leading-5 text-slate-500">
-                  ThreatLens currently uses the SQLite database through the
-                  FastAPI backend.
-                </p>
-              </div>
-            </div>
-          </SettingsSection>
+       
+         <div className="space-y-6">
+         
 
           <SettingsSection
             icon={<Bell className="h-5 w-5 text-red-400" />}
@@ -356,7 +377,34 @@ function InputField({
     </div>
   );
 }
+function PasswordInput({
+  label,
+  value,
+  onChange,
+  placeholder,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  placeholder: string;
+}) {
+  return (
+    <div>
+      <label className="mb-2 block text-sm font-medium text-slate-300">
+        {label}
+      </label>
 
+      <input
+        type="password"
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        placeholder={placeholder}
+        autoComplete="new-password"
+        className="w-full rounded-xl border border-white/10 bg-[#080b10] px-4 py-3 text-sm text-slate-200 outline-none placeholder:text-slate-700 focus:border-orange-500/50 focus:ring-4 focus:ring-orange-500/10"
+      />
+    </div>
+  );
+}
 function SettingRow({
   title,
   description,
@@ -397,7 +445,6 @@ function Toggle({ enabled, onChange }: ToggleProps) {
     </button>
   );
 }
-
 function StatusCard({
   title,
   value,
@@ -410,7 +457,10 @@ function StatusCard({
   return (
     <div className="rounded-xl border border-white/10 bg-white/[0.02] p-4">
       <p className="text-xs text-slate-500">{title}</p>
-      <p className={`mt-2 text-sm font-semibold ${color}`}>{value}</p>
+
+      <p className={`mt-2 text-sm font-semibold ${color}`}>
+        {value}
+      </p>
     </div>
   );
 }

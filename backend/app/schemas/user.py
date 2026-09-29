@@ -1,5 +1,5 @@
 from datetime import datetime
-
+from pydantic import BaseModel
 from pydantic import (
     BaseModel,
     ConfigDict,
@@ -59,3 +59,8 @@ class GoogleLoginRequest(BaseModel):
 
 class MessageResponse(BaseModel):
     message: str
+
+
+class ChangePasswordRequest(BaseModel):
+    current_password: str
+    new_password: str

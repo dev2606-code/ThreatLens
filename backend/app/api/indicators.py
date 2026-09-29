@@ -9,14 +9,15 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from backend.app.api.auth import get_current_user
 from backend.app.core.database import get_database
 from backend.app.models.indicator import Indicator
+from backend.app.models.user import User
 from backend.app.schemas.indicator import (
     IndicatorCreate,
     IndicatorResponse,
 )
-from backend.app.api.auth import get_current_user
-from backend.app.models.user import User
+
 router = APIRouter(
     prefix="/api/indicators",
     tags=["Indicators"],
@@ -84,6 +85,45 @@ def create_indicator(
         )
 
     return indicator
+
+
+@router.patch(
+    "/{indicator_id}/status",
+    response_model=IndicatorResponse,
+)
+def update_indicator_status(
+    indicator_id: int,
+    new_status: str,
+    database: Session = Depends(get_database),
+    current_user: User = Depends(get_current_user),
+):
+    indicator = database.get(Indicator, indicator_id)
+
+    if indicator is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Indicator not found.",
+        )
+
+    allowed_statuses = {
+        "Active",
+        "Acknowledged",
+    }
+
+    if new_status not in allowed_statuses:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid status.",
+        )
+
+    indicator.status = new_status
+
+    database.commit()
+    database.refresh(indicator)
+
+    return indicator
+
+
 @router.delete(
     "/{indicator_id}",
     status_code=status.HTTP_204_NO_CONTENT,
@@ -91,8 +131,7 @@ def create_indicator(
 def delete_indicator(
     indicator_id: int,
     database: Session = Depends(get_database),
-        current_user: User = Depends(get_current_user),
-
+    current_user: User = Depends(get_current_user),
 ):
     indicator = database.get(Indicator, indicator_id)
 
