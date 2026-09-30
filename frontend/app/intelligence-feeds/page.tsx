@@ -170,8 +170,8 @@ export default function IntelligenceFeedsPage() {
   return (
     <main className="min-h-screen bg-[#07090d] text-slate-100">
       <header className="border-b border-white/10 bg-[#090c11]">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-5">
-          <div className="flex items-center gap-3">
+<div className="flex w-full items-center justify-between px-6 py-5">
+            <div className="flex items-center gap-3">
             <div className="rounded-xl border border-violet-500/30 bg-violet-500/10 p-3">
               <ShieldCheck className="h-6 w-6 text-violet-400" />
             </div>
@@ -196,7 +196,7 @@ export default function IntelligenceFeedsPage() {
         </div>
       </header>
 
-      <section className="mx-auto max-w-7xl px-6 py-10">
+     <section className="w-full px-6 py-10">
         <div className="mb-8 flex flex-col justify-between gap-5 md:flex-row md:items-end">
           <div>
             <p className="mb-3 flex items-center gap-2 text-sm font-semibold tracking-[0.2em] text-cyan-400">

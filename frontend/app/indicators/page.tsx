@@ -92,46 +92,66 @@ export default function IndicatorsPage() {
 
     return "border-cyan-500/20 bg-cyan-500/10 text-cyan-400";
   }
+async function deleteIndicator(indicator: Indicator) {
+  const confirmed = window.confirm(
+    `Delete indicator "${indicator.value}"?`,
+  );
 
-  async function deleteIndicator(indicator: Indicator) {
-    const confirmed = window.confirm(
-      `Delete indicator "${indicator.value}"?`,
-    );
+  if (!confirmed) {
+    return;
+  }
 
-    if (!confirmed) {
+  setDeletingId(indicator.id);
+
+  try {
+    const token = localStorage.getItem("threatlens_access_token");
+
+    if (!token) {
+      window.alert("Your session has expired. Please login again.");
       return;
     }
 
-    setDeletingId(indicator.id);
-const token = localStorage.getItem("threatlens_access_token");
+    const response = await fetch(
+      `${API_URL}/api/indicators/${indicator.id}`,
+      {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      },
+    );
 
-if (!token) {
-  window.location.href = "/login";
-  return;
-}
-    try {
-   const response = await fetch(
-  `${API_URL}/api/indicators/${indicator.id}`,
-  {
-    method: "DELETE",
-  },
-);
+    if (response.status === 401) {
+      window.alert("Your session has expired. Please login again.");
+      return;
+    }
 
-      if (!response.ok) {
-        throw new Error("Delete failed");
-      }
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => null);
 
-      setIndicators((currentIndicators) =>
-        currentIndicators.filter(
-          (item) => item.id !== indicator.id,
-        ),
+      throw new Error(
+        errorData?.detail || "Delete failed",
       );
-   } catch {
-  setError("Backend connection failed. Make sure FastAPI is running.");
-} finally {
-  setLoading(false);
-}
+    }
+
+    setIndicators((currentIndicators) =>
+      currentIndicators.filter(
+        (item) => item.id !== indicator.id,
+      ),
+    );
+  } catch (error) {
+    console.error("Delete indicator error:", error);
+
+    window.alert(
+      error instanceof Error
+        ? error.message
+        : "Unable to delete indicator.",
+    );
+  } finally {
+    setDeletingId(null);
   }
+}
+  
 
   return (
     <main className="min-h-screen bg-[#030509] text-slate-100">

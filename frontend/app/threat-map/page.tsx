@@ -1,17 +1,10 @@
 "use client";
-
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
   ArrowLeft,
-  Bell,
-  Database,
-  FileText,
-  Globe2,
-  LayoutDashboard,
-  LogOut,
-  Search,
-  Settings,
-  ShieldCheck,
+Globe2,
+ShieldCheck,
 } from "lucide-react";
 import {
   ComposableMap,
@@ -56,119 +49,18 @@ const threatPoints = [
   },
 ];
 
-const navigation = [
-  {
-    name: "Overview",
-    icon: LayoutDashboard,
-    href: "/",
-  },
-  {
-    name: "Indicators",
-    icon: Search,
-    href: "/indicators",
-  },
-  {
-    name: "Alerts",
-    icon: Bell,
-    href: "/alerts",
-  },
-  {
-    name: "Threat Map",
-    icon: Globe2,
-    href: "/threat-map",
-  },
-  {
-    name: "Intelligence Feeds",
-    icon: Database,
-    href: "/intelligence-feeds",
-  },
-  {
-    name: "Reports",
-    icon: FileText,
-    href: "/reports",
-  },
-  {
-    name: "Settings",
-    icon: Settings,
-    href: "/settings",
-  },
-];
-
 export default function ThreatMapPage() {
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
   return (
     <div className="min-h-screen bg-[#030509] text-white">
-      {/* Sidebar */}
-      <aside className="fixed left-0 top-0 z-40 flex h-screen w-64 flex-col border-r border-white/10 bg-[#070a0f]">
-        {/* Logo */}
-        <div className="flex h-20 items-center gap-3 border-b border-white/10 px-6">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-500/10">
-            <ShieldCheck className="h-6 w-6 text-blue-400" />
-          </div>
-
-          <div>
-            <h1 className="text-lg font-semibold tracking-wide">
-              ThreatLens
-            </h1>
-            <p className="text-xs text-slate-500">
-              Threat Intelligence
-            </p>
-          </div>
-        </div>
-
-        {/* Navigation */}
-        <nav className="flex-1 space-y-1 px-3 py-6">
-          {navigation.map((item) => {
-            const Icon = item.icon;
-            const active = item.name === "Threat Map";
-
-            return (
-              <Link
-                key={item.name}
-                href={item.href}
-                className={`flex items-center gap-3 rounded-xl px-4 py-3 text-sm transition ${
-                  active
-                    ? "bg-blue-500/10 text-blue-400"
-                    : "text-slate-400 hover:bg-white/5 hover:text-white"
-                }`}
-              >
-                <Icon className="h-5 w-5" />
-                <span>{item.name}</span>
-              </Link>
-            );
-          })}
-        </nav>
-
-        {/* Bottom status */}
-        <div className="border-t border-white/10 p-4">
-          <div className="mb-4 flex items-center gap-3 rounded-xl bg-white/[0.03] p-3">
-            <div className="h-2.5 w-2.5 rounded-full bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.8)]" />
-
-            <div>
-              <p className="text-xs font-medium text-white">
-                System Operational
-              </p>
-              <p className="text-[11px] text-slate-500">
-                All systems online
-              </p>
-            </div>
-          </div>
-
-          <button
-            type="button"
-            onClick={() => {
-              localStorage.removeItem("threatlens_access_token");
-              window.location.href = "/login";
-            }}
-            className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm text-slate-400 transition hover:bg-white/5 hover:text-white"
-          >
-            <LogOut className="h-5 w-5" />
-            Logout
-          </button>
-        </div>
-      </aside>
+  
 
       {/* Main content */}
-      <main className="ml-64 min-h-screen">
+      <main className="min-h-screen">
         {/* Header */}
         <header className="sticky top-0 z-30 flex h-20 items-center justify-between border-b border-white/10 bg-[#030509]/95 px-8 backdrop-blur-xl">
           {/* Left side */}
@@ -296,71 +188,72 @@ export default function ThreatMapPage() {
             <div className="relative flex min-h-[520px] items-center justify-center overflow-hidden bg-[#05080d]">
               <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(37,99,235,0.08),transparent_55%)]" />
 
-              <ComposableMap
-                projection="geoMercator"
-                projectionConfig={{
-                  scale: 145,
-                  center: [10, 10],
-                }}
-                width={1000}
-                height={520}
-                className="relative z-10 h-full w-full"
-              >
-                <Geographies geography={geoUrl}>
-                  {({ geographies }) =>
-                    geographies.map((geo) => (
-                      <Geography
-                        key={geo.rsmKey}
-                        geography={geo}
-                        style={{
-                          fill: "#111827",
-                          stroke: "#334155",
-                          strokeWidth: 0.6,
-                          outline: "none",
-                        }}
-                      />
-                    )
-                  )}
-                </Geographies>
+              {mounted && (
+                <ComposableMap
+                  projection="geoMercator"
+                  projectionConfig={{
+                    scale: 145,
+                    center: [20, 20],
+                  }}
+                  width={1000}
+                  height={520}
+                >
+                  <Geographies geography={geoUrl}>
+                    {({ geographies }) =>
+                      geographies.map((geo) => (
+                        <Geography
+                          key={geo.rsmKey}
+                          geography={geo}
+                          style={{
+                            fill: "#111827",
+                            stroke: "#334155",
+                            strokeWidth: 0.6,
+                            outline: "none",
+                          }}
+                        />
+                      ))
+                    }
+                  </Geographies>
 
-                {threatPoints.map((point) => {
-                  const markerColor =
-                    point.severity === "Critical"
-                      ? "#ef4444"
-                      : point.severity === "High"
-                        ? "#fb923c"
-                        : "#facc15";
+                  {threatPoints.map((point) => {
+                    const markerColor =
+                      point.severity === "Critical"
+                        ? "#ef4444"
+                        : point.severity === "High"
+                          ? "#fb923c"
+                          : "#facc15";
 
-                  return (
-                    <Marker
-                      key={point.name}
-                      coordinates={point.coordinates}
-                    >
-                      <circle
-                        r={8}
-                        fill={markerColor}
-                        opacity={0.18}
-                      />
+                    return (
+                      <Marker
+                        key={point.name}
+                        coordinates={point.coordinates}
+                      >
+                        <circle
+                          r={8}
+                          fill={markerColor}
+                          opacity={0.18}
+                        />
 
-                      <circle
-                        r={4}
-                        fill={markerColor}
-                        stroke="#fff"
-                        strokeWidth={1}
-                        opacity={0.95}
-                      />
+                        <circle
+                          r={4}
+                          fill={markerColor}
+                          stroke="#fff"
+                          strokeWidth={1}
+                          opacity={0.95}
+                        />
 
-                      <circle
-                        r={12}
-                        fill="none"
-                        stroke={markerColor}
-                        strokeWidth={1}
-                        opacity={0.35}
-                      />
-                    </Marker>
-                  );
-                })}
-              </ComposableMap>
+                        <circle
+                          r={12}
+                          fill="none"
+                          stroke={markerColor}
+                          strokeWidth={1}
+                          opacity={0.35}
+                        />
+                      </Marker>
+                    );
+                  })}
+                </ComposableMap>
+              )}
             </div>
           </section>
 

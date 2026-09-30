@@ -56,8 +56,8 @@ export default function ReportsPage() {
       setIndicators(Array.isArray(data) ? data : []);
     } catch {
       setError(
-        "Report data load nahi hua. Check karein ki backend port 8000 par running hai.",
-      );
+  "Unable to load report data. Please make sure the backend is running on port 8000.",
+);
     } finally {
       setLoading(false);
     }
@@ -103,7 +103,7 @@ export default function ReportsPage() {
 
   function exportCsv() {
     if (indicators.length === 0) {
-      window.alert("Export karne ke liye indicator data available nahi hai.");
+      window.alert("No indicator data is available for export.");
       return;
     }
 
@@ -160,7 +160,7 @@ export default function ReportsPage() {
   return (
     <main className="min-h-screen bg-[#07090d] text-slate-100">
       <header className="border-b border-white/10 bg-[#090c11]">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-5">
+      <div className="flex w-full items-center justify-between px-6 py-5">
           <div className="flex items-center gap-3">
             <div className="rounded-xl border border-violet-500/30 bg-violet-500/10 p-3">
               <ShieldCheck className="h-6 w-6 text-violet-400" />
@@ -187,8 +187,8 @@ export default function ReportsPage() {
         </div>
       </header>
 
-      <section className="mx-auto max-w-7xl px-6 py-10">
-        <div className="mb-8 flex flex-col justify-between gap-5 md:flex-row md:items-end">
+<section className="w-full px-6 py-10">
+          <div className="mb-8 flex flex-col justify-between gap-5 md:flex-row md:items-end">
           <div>
             <p className="mb-3 flex items-center gap-2 text-sm font-semibold tracking-[0.2em] text-violet-400">
               <FileText className="h-4 w-4" />
@@ -336,11 +336,10 @@ export default function ReportsPage() {
             </div>
 
             <div className="mt-6 rounded-xl border border-violet-500/20 bg-violet-500/[0.06] p-4">
-              <p className="text-sm leading-6 text-slate-400">
-                Exported report mein indicator value, type, risk score,
-                severity, source, status, description aur creation date
-                include honge.
-              </p>
+        <p className="text-sm leading-6 text-slate-400">
+  The exported report will include indicator value, type, risk
+  score, severity, source, status, description, and creation date.
+</p>
             </div>
           </section>
         </div>
@@ -361,10 +360,11 @@ export default function ReportsPage() {
           ) : indicators.length === 0 ? (
             <div className="flex min-h-60 flex-col items-center justify-center px-6 text-center">
               <FileText className="mb-4 h-12 w-12 text-slate-700" />
-              <h4 className="font-semibold">No report data</h4>
-              <p className="mt-2 text-sm text-slate-500">
-                Add an indicator from the Dashboard to generate report data.
-              </p>
+             <h4 className="font-semibold">No report data available</h4>
+
+<p className="mt-2 text-sm text-slate-500">
+  Add an indicator from the Dashboard to generate report data.
+</p>
             </div>
           ) : (
             <div className="overflow-x-auto">

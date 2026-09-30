@@ -1,32 +1,73 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
-  LayoutDashboard,
-  ShieldAlert,
   Activity,
-  Settings,
+  Bell,
+  Database,
+  FileText,
+  Globe2,
+  LayoutDashboard,
   LogOut,
+  Search,
+  Settings,
+  Shield,
   User,
   X,
-  Map,
-  FileText,
-  Radio,
 } from "lucide-react";
+
 interface SidebarProps {
   isOpen?: boolean;
   onClose?: () => void;
-  active?: string;
 }
-const navigation = [
-  { name: "Dashboard", href: "/", icon: LayoutDashboard },
-  { name: "Indicators", href: "/indicators", icon: Activity },
-  { name: "Alerts", href: "/alerts", icon: ShieldAlert },
-  { name: "Threat Map", href: "/threat-map", icon: Map },
-  { name: "Reports", href: "/reports", icon: FileText },
-  { name: "Intelligence Feeds", href: "/intelligence-feeds", icon: Radio },
-  { name: "Settings", href: "/settings", icon: Settings },
+
+const navItems = [
+  {
+    name: "Dashboard",
+    href: "/",
+    icon: LayoutDashboard,
+  },
+  {
+    name: "Indicators",
+    href: "/indicators",
+    icon: Search,
+  },
+  {
+    name: "Alerts",
+    href: "/alerts",
+    icon: Bell,
+  },
+  {
+    name: "Threat Map",
+    href: "/threat-map",
+    icon: Globe2,
+  },
+  {
+    name: "Reports",
+    href: "/reports",
+    icon: FileText,
+  },
+  {
+    name: "Intelligence Feeds",
+    href: "/intelligence-feeds",
+    icon: Database,
+  },
+  {
+    name: "Settings",
+    href: "/settings",
+    icon: Settings,
+  },
+  {
+    name: "Profile",
+    href: "/profile",
+    icon: User,
+  },
+  {
+    name: "Logout",
+    href: "/logout",
+    icon: LogOut,
+  },
 ];
 
 export default function Sidebar({
@@ -34,110 +75,164 @@ export default function Sidebar({
   onClose,
 }: SidebarProps) {
   const pathname = usePathname();
+  const router = useRouter();
 
   const handleLogout = () => {
     localStorage.removeItem("threatlens_access_token");
-    localStorage.removeItem("threatlens_user");
-    window.location.href = "/login";
+    localStorage.removeItem("threatlens-settings");
+
+    router.push("/login");
+  };
+
+  const isActive = (href: string) => {
+    if (href === "/") {
+      return pathname === "/";
+    }
+
+    return pathname === href || pathname.startsWith(`${href}/`);
   };
 
   return (
     <>
-      {isOpen && onClose && (
-        <div
-          className="fixed inset-0 z-40 bg-black/60 md:hidden"
+      {/* Mobile Overlay */}
+      {isOpen && (
+        <button
+          type="button"
           onClick={onClose}
+          aria-label="Close sidebar overlay"
+          className="fixed inset-0 z-40 bg-black/50 md:hidden"
         />
       )}
 
+      {/* Sidebar */}
       <aside
-        className={`fixed left-0 top-0 z-50 flex h-screen w-64 flex-col border-r border-white/10 bg-[#09090b] text-white transition-transform duration-300 ${
-          isOpen ? "translate-x-0" : "-translate-x-full"
+        className={`fixed left-0 top-0 z-50 flex h-screen w-64 flex-col border-r border-white/[0.06] bg-[#090b10] transition-transform duration-300 ${
+          isOpen
+            ? "translate-x-0"
+            : "-translate-x-full"
         } md:translate-x-0`}
       >
-        <div className="flex h-20 items-center justify-between border-b border-white/10 px-5">
-          <Link href="/" onClick={onClose} className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-600">
-              <ShieldAlert size={22} />
+        {/* Logo / Header */}
+        <div className="flex h-20 items-center justify-between border-b border-white/[0.06] px-5">
+          <Link
+            href="/"
+            onClick={onClose}
+            className="flex items-center gap-3"
+          >
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-600/15 ring-1 ring-violet-500/20">
+              <Shield className="h-5 w-5 text-violet-400" />
             </div>
 
             <div>
-              <h1 className="text-lg font-bold">ThreatLens</h1>
-              <p className="text-[10px] uppercase tracking-[0.2em] text-gray-500">
+              <h1 className="text-base font-semibold tracking-wide text-white">
+                ThreatLens
+              </h1>
+
+              <p className="text-[10px] uppercase tracking-[0.18em] text-slate-500">
                 Threat Intelligence
               </p>
             </div>
           </Link>
 
-          {onClose && (
-            <button
-              onClick={onClose}
-              className="rounded-lg p-2 text-gray-400 hover:bg-white/10 md:hidden"
-            >
-              <X size={20} />
-            </button>
-          )}
+          {/* Mobile Close */}
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close sidebar"
+            className="rounded-lg p-2 text-slate-500 transition hover:bg-white/[0.05] hover:text-white md:hidden"
+          >
+            <X className="h-5 w-5" />
+          </button>
         </div>
 
-        <nav className="flex-1 space-y-2 px-3 py-6">
-          <p className="px-3 pb-2 text-[11px] font-semibold uppercase tracking-widest text-gray-500">
+        {/* Navigation */}
+        <nav className="flex-1 overflow-y-auto px-3 py-6">
+          <p className="mb-3 px-3 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-600">
             Main Menu
           </p>
 
-          {navigation.map((item) => {
-            const Icon = item.icon;
+          <div className="space-y-1">
+            {navItems.map((item) => {
+              const Icon = item.icon;
+              const active = isActive(item.href);
 
-            const isActive =
-              item.href === "/"
-                ? pathname === "/"
-                : pathname === item.href ||
-                  pathname.startsWith(`${item.href}/`);
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  onClick={(event) => {
+                    if (item.href === "/logout") {
+                      event.preventDefault();
+                      handleLogout();
+                    }
+                    onClose?.();
+                  }}
+                  className={`group flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium transition-all ${
+                    active
+                      ? "bg-violet-500/10 text-violet-300 ring-1 ring-violet-500/15"
+                      : "text-slate-500 hover:bg-white/[0.035] hover:text-slate-200"
+                  }`}
+                >
+                  <Icon
+                    className={`h-[18px] w-[18px] shrink-0 transition ${
+                      active
+                        ? "text-violet-400"
+                        : "text-slate-600 group-hover:text-slate-300"
+                    }`}
+                  />
 
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                onClick={onClose}
-                className={`group flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium transition-all ${
-                  isActive
-                    ? "bg-violet-600/15 text-violet-400"
-                    : "text-gray-400 hover:bg-white/5 hover:text-white"
-                }`}
-              >
-                <Icon size={19} />
-                <span>{item.name}</span>
+                  <span>{item.name}</span>
 
-                {isActive && (
-                  <span className="ml-auto h-2 w-2 rounded-full bg-violet-500" />
-                )}
-              </Link>
-            );
-          })}
+                  {active && (
+                    <span className="ml-auto h-1.5 w-1.5 rounded-full bg-violet-400" />
+                  )}
+                </Link>
+              );
+            })}
+          </div>
         </nav>
 
-        <div className="border-t border-white/10 p-3">
-          <div className="mb-2 flex items-center gap-3 rounded-xl bg-white/[0.03] px-3 py-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-violet-600/20 text-violet-400">
-              <User size={18} />
+        {/* Bottom Status */}
+        <div className="border-t border-white/[0.06] p-3">
+          <div className="rounded-xl border border-emerald-500/10 bg-emerald-500/[0.04] p-3">
+            <div className="flex items-center gap-2">
+              <span className="relative flex h-2 w-2">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-50" />
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" />
+              </span>
+
+              <span className="text-xs font-medium text-emerald-400">
+                System Online
+              </span>
             </div>
 
-            <div>
-              <p className="text-sm font-medium text-white">
-                ThreatLens User
-              </p>
-              <p className="text-xs text-gray-500">
-                Security Analyst
-              </p>
-            </div>
+            <p className="mt-1 pl-4 text-[10px] text-slate-600">
+              All services operational
+            </p>
           </div>
 
-          <button
-            onClick={handleLogout}
-            className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium text-gray-400 hover:bg-red-500/10 hover:text-red-400"
+          {/* Profile */}
+          <Link
+            href="/profile"
+            onClick={onClose}
+            className="mt-3 flex items-center gap-3 rounded-xl px-3 py-3 transition hover:bg-white/[0.035]"
           >
-            <LogOut size={19} />
-            <span>Logout</span>
-          </button>
+            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-violet-500 to-blue-500">
+              <User className="h-4 w-4 text-white" />
+            </div>
+
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-xs font-medium text-slate-200">
+                Devendra Sinha
+              </p>
+
+              <p className="truncate text-[10px] text-slate-600">
+                Threat Analyst
+              </p>
+            </div>
+
+            <Activity className="h-3.5 w-3.5 text-emerald-400" />
+          </Link>
         </div>
       </aside>
     </>
