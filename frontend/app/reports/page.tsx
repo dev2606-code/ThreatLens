@@ -44,10 +44,18 @@ export default function ReportsPage() {
     try {
       setLoading(true);
       setError("");
+const token = localStorage.getItem("threatlens_access_token");
 
-      const response = await fetch(`${API_URL}/api/indicators`, {
-        cache: "no-store",
-      });
+if (!token) {
+  throw new Error("Authentication required");
+}
+
+const response = await fetch(`${API_URL}/api/indicators`, {
+  cache: "no-store",
+  headers: {
+    Authorization: `Bearer ${token}`,
+  },
+});
 
       if (!response.ok) {
         throw new Error(`API error: ${response.status}`);
