@@ -29,7 +29,7 @@ type ToggleProps = {
 export default function SettingsPage() {
   const [analystName, setAnalystName] = useState("Devendra Sinha");
   const [email, setEmail] = useState("devendra@threatlens.local");
-  const [apiUrl, setApiUrl] = useState("http://127.0.0.1:8000");
+  const [apiUrl, setApiUrl] = useState("https://threatlens-1-hu2v.onrender.com");
   const [criticalAlerts, setCriticalAlerts] = useState(true);
   const [highAlerts, setHighAlerts] = useState(true);
   const [feedAlerts, setFeedAlerts] = useState(true);
@@ -53,7 +53,7 @@ export default function SettingsPage() {
 
       setAnalystName(settings.analystName ?? "Devendra Sinha");
       setEmail(settings.email ?? "devendra@threatlens.local");
-      setApiUrl(settings.apiUrl ?? "http://127.0.0.1:8000");
+      setApiUrl(settings.apiUrl ?? "https://threatlens-1-hu2v.onrender.com");
       setCriticalAlerts(settings.criticalAlerts ?? true);
       setHighAlerts(settings.highAlerts ?? true);
       setFeedAlerts(settings.feedAlerts ?? true);

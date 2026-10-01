@@ -10,7 +10,7 @@ import {
   ArrowRight,
 } from "lucide-react";
 const API_URL =
-  process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8000";
+  process.env.NEXT_PUBLIC_API_URL ?? "https://threatlens-1-hu2v.onrender.com";
 
 const GOOGLE_CLIENT_ID =
   process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ?? "";
