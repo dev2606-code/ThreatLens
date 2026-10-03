@@ -2,6 +2,7 @@ import html
 import logging
 import os
 from pathlib import Path
+import secrets
 from dotenv import load_dotenv
 
 BASE_DIR = Path(__file__).resolve().parents[3]
@@ -495,8 +496,8 @@ def google_login(
             username=username,
             email=google_email,
             hashed_password=hash_password(
-                generate_one_time_token()
-            ),
+    secrets.token_urlsafe(32)
+),
             is_active=True,
         )
 
