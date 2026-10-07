@@ -9,19 +9,14 @@ from backend.app.api.auth import router as auth_router
 from backend.app.models.auth_token import AuthToken
 Base.metadata.create_all(bind=engine)
 
-app = FastAPI(
-    title="ThreatLens API",
-    description="Cyber Threat Intelligence Dashboard API",
-    version="1.0.0",
-)
 app.add_middleware(
     CORSMiddleware,
-  allow_origins=[
-    "http://localhost:3000",
-    "http://localhost:3001",
-    "https://threat-lens-dusky.vercel.app",
-    "https://threat-lens-anm8.vercel.app",
-],
+    allow_origins=[
+        "http://localhost:3000",
+        "http://localhost:3001",
+        "https://threat-lens-anm8.vercel.app",
+        "https://threat-lens-dusky.vercel.app",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
