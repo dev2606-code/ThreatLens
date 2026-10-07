@@ -2,12 +2,22 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from backend.app.api.indicators import router as indicators_router
+from backend.app.api.auth import router as auth_router
 from backend.app.core.database import Base, SessionLocal, engine
 from backend.app.models.indicator import Indicator
 from backend.app.models.user import User
-from backend.app.api.auth import router as auth_router
 from backend.app.models.auth_token import AuthToken
+
+
 Base.metadata.create_all(bind=engine)
+
+
+app = FastAPI(
+    title="ThreatLens API",
+    description="Cyber Threat Intelligence Dashboard API",
+    version="1.0.0",
+)
+
 
 app.add_middleware(
     CORSMiddleware,
@@ -21,9 +31,10 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
 app.include_router(indicators_router)
 app.include_router(auth_router)
-
 @app.get("/")
 def home():
     return {
