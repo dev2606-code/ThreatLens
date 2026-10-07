@@ -44,18 +44,19 @@ export default function ReportsPage() {
     try {
       setLoading(true);
       setError("");
-const token = localStorage.getItem("threatlens_access_token");
 
-if (!token) {
-  throw new Error("Authentication required");
-}
+      const token = localStorage.getItem("threatlens_access_token");
 
-const response = await fetch(`${API_URL}/api/indicators`, {
-  cache: "no-store",
-  headers: {
-    Authorization: `Bearer ${token}`,
-  },
-});
+      if (!token) {
+        throw new Error("Authentication required");
+      }
+
+      const response = await fetch(`${API_URL}/api/indicators`, {
+        cache: "no-store",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
 
       if (!response.ok) {
         throw new Error(`API error: ${response.status}`);
@@ -63,10 +64,14 @@ const response = await fetch(`${API_URL}/api/indicators`, {
 
       const data: Indicator[] = await response.json();
       setIndicators(Array.isArray(data) ? data : []);
-    } catch {
+    } catch (err) {
+      console.error("ThreatLens Reports API error:", err);
+
       setError(
-  "Unable to load report data. Please make sure the backend is running on port 8000.",
-);
+        err instanceof Error
+          ? err.message
+          : "Unknown error while loading report data.",
+      );
     } finally {
       setLoading(false);
     }

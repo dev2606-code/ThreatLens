@@ -1,9 +1,15 @@
 import html
+import importlib.util
 import logging
 import os
 from pathlib import Path
 import secrets
-from dotenv import load_dotenv
+from sqlalchemy import or_
+if importlib.util.find_spec("dotenv") is not None:
+    from dotenv import load_dotenv
+else:
+    def load_dotenv(*args, **kwargs):
+        return False
 
 BASE_DIR = Path(__file__).resolve().parents[3]
 load_dotenv(BASE_DIR / ".env")
@@ -18,7 +24,7 @@ from sqlalchemy.orm import Session
 from google.auth.transport import requests as google_requests
 from google.oauth2 import id_token
 
-from backend.app.core.database import get_database
+from backend.app.core.database import get_database # type: ignore
 from backend.app.core.security import (
     ALGORITHM,
     SECRET_KEY,
@@ -517,7 +523,42 @@ def google_login(
         "token_type": "bearer",
     }
 
+# ============================================================
+# GUEST LOGIN
+# ============================================================
 
+@router.post(
+    "/guest",
+    response_model=TokenResponse,
+)
+def guest_login(
+    database: Session = Depends(get_database),
+):
+    guest_id = secrets.token_hex(6)
+
+    username = f"guest_{guest_id}"
+    email = f"{username}@guest.threatlens.local"
+
+    user = User(
+        username=username,
+        email=email,
+        hashed_password=hash_password(
+            secrets.token_urlsafe(32)
+        ),
+        is_active=True,
+        is_guest=True,
+    )
+
+    database.add(user)
+    database.commit()
+    database.refresh(user)
+
+    token = create_access_token(user.id)
+
+    return {
+        "access_token": token,
+        "token_type": "bearer",
+    }
 # ============================================================
 # CHANGE PASSWORD
 # ============================================================
@@ -562,8 +603,6 @@ def change_password(
     return {
         "message": "Password changed successfully."
     }
-
-
 # ============================================================
 # LOGIN
 # ============================================================
@@ -576,9 +615,16 @@ def login_user(
     form_data: OAuth2PasswordRequestForm = Depends(),
     database: Session = Depends(get_database),
 ):
+    login_value = form_data.username.strip().lower()
+
     user = (
         database.query(User)
-        .filter(User.username == form_data.username)
+        .filter(
+            or_(
+                User.username.ilike(login_value),
+                User.email.ilike(login_value),
+            )
+        )
         .first()
     )
 
@@ -588,7 +634,7 @@ def login_user(
     ):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect username or password",
+            detail="Incorrect username/email or password",
             headers={
                 "WWW-Authenticate": "Bearer"
             },
@@ -606,6 +652,8 @@ def login_user(
         "access_token": token,
         "token_type": "bearer",
     }
+
+
 
 
 # ============================================================
