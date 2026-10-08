@@ -1,7 +1,9 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+
 import {
   Activity,
   Bell,
@@ -9,6 +11,7 @@ import {
   FileText,
   Globe2,
   LayoutDashboard,
+  Loader2,
   LogOut,
   Search,
   Settings,
@@ -21,6 +24,17 @@ interface SidebarProps {
   isOpen?: boolean;
   onClose?: () => void;
 }
+
+interface UserData {
+  username: string;
+  email: string;
+  is_active: boolean;
+  is_guest: boolean;
+}
+
+const API_URL =
+  process.env.NEXT_PUBLIC_API_URL ??
+  "https://threatlens-1-hu2v.onrender.com";
 
 const navItems = [
   {
@@ -77,9 +91,56 @@ export default function Sidebar({
   const pathname = usePathname();
   const router = useRouter();
 
+  const [user, setUser] = useState<UserData | null>(null);
+  const [userLoading, setUserLoading] = useState(true);
+
+  useEffect(() => {
+    async function loadUser() {
+      const token = localStorage.getItem(
+        "threatlens_access_token",
+      );
+
+      if (!token) {
+        setUserLoading(false);
+        return;
+      }
+
+      try {
+        const response = await fetch(
+          `${API_URL}/api/auth/me`,
+          {
+            method: "GET",
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          },
+        );
+
+        if (!response.ok) {
+          throw new Error("Unable to load user.");
+        }
+
+        const data = await response.json();
+
+        setUser(data);
+      } catch {
+        setUser(null);
+      } finally {
+        setUserLoading(false);
+      }
+    }
+
+    void loadUser();
+  }, []);
+
   const handleLogout = () => {
-    localStorage.removeItem("threatlens_access_token");
-    localStorage.removeItem("threatlens-settings");
+    localStorage.removeItem(
+      "threatlens_access_token",
+    );
+
+    localStorage.removeItem(
+      "threatlens-settings",
+    );
 
     router.push("/login");
   };
@@ -89,8 +150,23 @@ export default function Sidebar({
       return pathname === "/";
     }
 
-    return pathname === href || pathname.startsWith(`${href}/`);
+    return (
+      pathname === href ||
+      pathname.startsWith(`${href}/`)
+    );
   };
+
+  const displayName = user
+    ? user.is_guest
+      ? "Guest"
+      : user.username
+    : "User";
+
+  const displayRole = user
+    ? user.is_guest
+      ? "Guest Account"
+      : "Threat Analyst"
+    : "Account";
 
   return (
     <>
@@ -165,6 +241,7 @@ export default function Sidebar({
                       event.preventDefault();
                       handleLogout();
                     }
+
                     onClose?.();
                   }}
                   className={`group flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium transition-all ${
@@ -198,6 +275,7 @@ export default function Sidebar({
             <div className="flex items-center gap-2">
               <span className="relative flex h-2 w-2">
                 <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-50" />
+
                 <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" />
               </span>
 
@@ -217,21 +295,33 @@ export default function Sidebar({
             onClick={onClose}
             className="mt-3 flex items-center gap-3 rounded-xl px-3 py-3 transition hover:bg-white/[0.035]"
           >
-            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-violet-500 to-blue-500">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-violet-500 to-blue-500">
               <User className="h-4 w-4 text-white" />
             </div>
 
             <div className="min-w-0 flex-1">
-              <p className="truncate text-xs font-medium text-slate-200">
-                Devendra Sinha
-              </p>
+              {userLoading ? (
+                <div className="flex items-center gap-2">
+                  <Loader2 className="h-3.5 w-3.5 animate-spin text-violet-400" />
 
-              <p className="truncate text-[10px] text-slate-600">
-                Threat Analyst
-              </p>
+                  <p className="text-xs text-slate-500">
+                    Loading...
+                  </p>
+                </div>
+              ) : (
+                <>
+                  <p className="truncate text-xs font-medium text-slate-200">
+                    {displayName}
+                  </p>
+
+                  <p className="truncate text-[10px] text-slate-600">
+                    {displayRole}
+                  </p>
+                </>
+              )}
             </div>
 
-            <Activity className="h-3.5 w-3.5 text-emerald-400" />
+            <Activity className="h-3.5 w-3.5 shrink-0 text-emerald-400" />
           </Link>
         </div>
       </aside>
