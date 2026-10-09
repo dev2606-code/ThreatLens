@@ -1,50 +1,26 @@
+
 "use client";
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-
+import { useRouter } from "next/navigation";
 import {
   Activity,
-  CircleAlert,
+  AlertTriangle,
   Database,
-  FileText,
   Globe2,
   Radar,
   Search,
   ShieldCheck,
   ShieldPlus,
   Siren,
-  SlidersHorizontal,
   User,
 } from "lucide-react";
-
-import {
-  Area,
-  AreaChart,
-  CartesianGrid,
-  Cell,
-  Legend,
-  Pie,
-  PieChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
-
 import AddIndicatorModal from "./components/AddIndicatorModal";
-
 
 const API_URL =
   process.env.NEXT_PUBLIC_API_URL ??
   "https://threatlens-1-hu2v.onrender.com";
-
-type DashboardStats = {
-  active_indicators: number;
-  critical_threats: number;
-  open_alerts: number;
-  feeds_online: number;
-};
 
 type UserData = {
   username: string;
@@ -53,7 +29,15 @@ type UserData = {
   is_guest: boolean;
 };
 
+type DashboardStats = {
+  active_indicators: number;
+  critical_threats: number;
+  open_alerts: number;
+  feeds_online: number;
+};
+
 type Threat = {
+  id: number;
   indicator: string;
   type: string;
   score: number;
@@ -69,168 +53,28 @@ const fallbackStats: DashboardStats = {
   feeds_online: 8,
 };
 
-const chartDataByPeriod = {
-  "24H": [
-    { time: "00:00", total: 310, critical: 110 },
-    { time: "04:00", total: 430, critical: 150 },
-    { time: "08:00", total: 540, critical: 210 },
-    { time: "12:00", total: 720, critical: 260 },
-    { time: "16:00", total: 510, critical: 230 },
-    { time: "20:00", total: 810, critical: 350 },
-    { time: "24:00", total: 680, critical: 290 },
-  ],
-
-  "7D": [
-    { time: "Mon", total: 1850, critical: 420 },
-    { time: "Tue", total: 2140, critical: 510 },
-    { time: "Wed", total: 1980, critical: 460 },
-    { time: "Thu", total: 2460, critical: 620 },
-    { time: "Fri", total: 2280, critical: 540 },
-    { time: "Sat", total: 2710, critical: 680 },
-    { time: "Sun", total: 2530, critical: 590 },
-  ],
-
-  "30D": [
-    { time: "Week 1", total: 8420, critical: 1840 },
-    { time: "Week 2", total: 9650, critical: 2130 },
-    { time: "Week 3", total: 11240, critical: 2480 },
-    { time: "Week 4", total: 12860, critical: 2910 },
-  ],
-};
-
-const severityData = [
-  { name: "Critical", value: 24, color: "#fb4b62" },
-  { name: "High", value: 147, color: "#ff932e" },
-  { name: "Medium", value: 681, color: "#8b5cf6" },
-  { name: "Low", value: 11995, color: "#22d3ee" },
-];
-
-const fallbackThreats: Threat[] = [
-  {
-    indicator: "185.199.110.42",
-    type: "IP Address",
-    score: 98,
-    severity: "Critical",
-    source: "OpenIntel Feed",
-    time: "14:12",
-  },
-  {
-    indicator: "malware-update[.]com",
-    type: "Domain",
-    score: 87,
-    severity: "Critical",
-    source: "ThreatLens CTI",
-    time: "13:56",
-  },
-  {
-    indicator: "a3f5d2c7e9b4...7c1a",
-    type: "File Hash",
-    score: 76,
-    severity: "High",
-    source: "VirusTotal",
-    time: "12:41",
-  },
-  {
-    indicator: "login-secure365[.]net",
-    type: "Domain",
-    score: 65,
-    severity: "Medium",
-    source: "PhishTank",
-    time: "10:14",
-  },
-];
-
-const mapPoints = [
-  {
-    left: "18%",
-    top: "36%",
-    color: "bg-red-500",
-    size: "h-4 w-4",
-  },
-  {
-    left: "26%",
-    top: "29%",
-    color: "bg-violet-500",
-    size: "h-3 w-3",
-  },
-  {
-    left: "42%",
-    top: "40%",
-    color: "bg-orange-500",
-    size: "h-4 w-4",
-  },
-  {
-    left: "54%",
-    top: "31%",
-    color: "bg-red-500",
-    size: "h-3 w-3",
-  },
-  {
-    left: "64%",
-    top: "43%",
-    color: "bg-cyan-400",
-    size: "h-2.5 w-2.5",
-  },
-  {
-    left: "75%",
-    top: "35%",
-    color: "bg-violet-500",
-    size: "h-4 w-4",
-  },
-  {
-    left: "82%",
-    top: "57%",
-    color: "bg-orange-500",
-    size: "h-3 w-3",
-  },
-  {
-    left: "32%",
-    top: "62%",
-    color: "bg-cyan-400",
-    size: "h-3 w-3",
-  },
-  {
-    left: "57%",
-    top: "67%",
-    color: "bg-violet-500",
-    size: "h-3 w-3",
-  },
-];
-
 export default function Home() {
+  const router = useRouter();
+
+  const [user, setUser] = useState<UserData | null>(null);
+  const [authChecked, setAuthChecked] = useState(false);
   const [stats, setStats] =
     useState<DashboardStats>(fallbackStats);
+  const [threats, setThreats] = useState<Threat[]>([]);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [loadError, setLoadError] = useState("");
 
-  const [user, setUser] =
-    useState<UserData | null>(null);
-
-  const [isModalOpen, setIsModalOpen] =
-    useState(false);
-
-  const [threats, setThreats] =
-    useState<Threat[]>(fallbackThreats);
-
-  const [selectedPeriod, setSelectedPeriod] =
-    useState<"24H" | "7D" | "30D">("24H");
-
-  /*
-   * LOAD CURRENT USER
-   *
-   * Guest:
-   *   Guest
-   *   Guest Account
-   *
-   * Google:
-   *   Actual username
-   *   Threat Analyst
-   */
+  // Validate the current session before showing the dashboard.
   useEffect(() => {
+    let cancelled = false;
+
     async function loadUser() {
       const token = localStorage.getItem(
         "threatlens_access_token",
       );
 
       if (!token) {
+        router.replace("/login");
         return;
       }
 
@@ -242,81 +86,129 @@ export default function Home() {
             headers: {
               Authorization: `Bearer ${token}`,
             },
+            cache: "no-store",
           },
         );
 
         if (!response.ok) {
+          localStorage.removeItem(
+            "threatlens_access_token",
+          );
+          router.replace("/login");
           return;
         }
 
-        const data: UserData =
-          await response.json();
+        const data: UserData = await response.json();
 
-        setUser(data);
+        if (!data.is_active) {
+          localStorage.removeItem(
+            "threatlens_access_token",
+          );
+          router.replace("/login");
+          return;
+        }
+
+        if (!cancelled) {
+          setUser(data);
+          setAuthChecked(true);
+        }
       } catch (error) {
         console.error(
-          "Failed to load user:",
+          "Failed to validate session:",
           error,
         );
 
-        setUser(null);
+        localStorage.removeItem(
+          "threatlens_access_token",
+        );
+        router.replace("/login");
       }
     }
 
     void loadUser();
-  }, []);
 
-  /*
-   * LOAD DASHBOARD DATA
-   */
+    return () => {
+      cancelled = true;
+    };
+  }, [router]);
+
+  // Load dashboard information after the session is validated.
   useEffect(() => {
+    if (!authChecked) return;
+
+    let cancelled = false;
+
     async function loadDashboardData() {
+      const token = localStorage.getItem(
+        "threatlens_access_token",
+      );
+
+      if (!token) {
+        router.replace("/login");
+        return;
+      }
+
+      const headers = {
+        Authorization: `Bearer ${token}`,
+      };
+
       try {
-        const statsResponse = await fetch(
-          `${API_URL}/api/dashboard/stats`,
-        );
+        const [statsResponse, indicatorsResponse] =
+          await Promise.all([
+            fetch(`${API_URL}/api/dashboard/stats`, {
+              headers,
+              cache: "no-store",
+            }),
+            fetch(`${API_URL}/api/indicators`, {
+              headers,
+              cache: "no-store",
+            }),
+          ]);
 
-        if (statsResponse.ok) {
-          const statsData: DashboardStats =
-            await statsResponse.json();
-
-          setStats(statsData);
+        if (statsResponse.status === 401 ||
+            indicatorsResponse.status === 401) {
+          localStorage.removeItem(
+            "threatlens_access_token",
+          );
+          router.replace("/login");
+          return;
         }
 
-        const indicatorsResponse = await fetch(
-          `${API_URL}/api/indicators`,
-        );
+        if (statsResponse.ok) {
+          const data: DashboardStats =
+            await statsResponse.json();
+
+          if (!cancelled) setStats(data);
+        }
 
         if (indicatorsResponse.ok) {
-          const indicators =
-            await indicatorsResponse.json();
+          const data = await indicatorsResponse.json();
 
-          const formattedIndicators: Threat[] =
-            indicators.map(
-              (indicator: {
-                id: number;
-                value: string;
-                indicator_type: string;
-                severity_score: number;
-                severity: string;
-                source: string;
-                created_at: string;
-              }) => ({
-                indicator: indicator.value,
-                type: indicator.indicator_type,
-                score: indicator.severity_score,
-                severity: indicator.severity,
-                source: indicator.source,
-                time: new Date(
-                  indicator.created_at,
-                ).toLocaleTimeString([], {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                }),
-              }),
-            );
+          const formatted: Threat[] = data.map(
+            (item: {
+              id: number;
+              value: string;
+              indicator_type: string;
+              severity_score: number;
+              severity: string;
+              source: string;
+              created_at: string;
+            }) => ({
+              id: item.id,
+              indicator: item.value,
+              type: item.indicator_type,
+              score: item.severity_score,
+              severity: item.severity,
+              source: item.source,
+              time: item.created_at
+                ? new Date(
+                    item.created_at,
+                  ).toLocaleString()
+                : "—",
+            }),
+          );
 
-          setThreats(formattedIndicators);
+          if (!cancelled) setThreats(formatted);
         }
       } catch (error) {
         console.error(
@@ -324,632 +216,258 @@ export default function Home() {
           error,
         );
 
-        setStats(fallbackStats);
-        setThreats(fallbackThreats);
+        if (!cancelled) {
+          setLoadError(
+            "Unable to load live data. Check your backend connection.",
+          );
+        }
       }
     }
 
     void loadDashboardData();
-  }, []);
 
-  const statCards = [
+    return () => {
+      cancelled = true;
+    };
+  }, [authChecked, router]);
+
+  // Never render dashboard content before authentication succeeds.
+  if (!authChecked) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-[#030509] text-slate-300">
+        <div className="text-center">
+          <ShieldCheck className="mx-auto mb-4 h-10 w-10 animate-pulse text-violet-400" />
+          <p className="text-sm">Checking your session...</p>
+        </div>
+      </main>
+    );
+  }
+
+  const displayName = user?.is_guest
+    ? "Guest"
+    : user?.username ?? "User";
+
+  const displayRole = user?.is_guest
+    ? "Guest Account"
+    : "Threat Analyst";
+
+  const cards = [
     {
       title: "Active Indicators",
-      value:
-        stats.active_indicators.toLocaleString(),
-      change: "Stored IOCs",
+      value: stats.active_indicators,
       icon: Radar,
-      iconColor: "text-violet-400",
-      iconBackground: "bg-violet-500/10",
-      border:
-        "hover:border-violet-500/40",
+      color: "text-violet-400",
+      note: "Stored IOCs",
     },
     {
       title: "Critical Threats",
-      value: stats.critical_threats.toString(),
-      change: "Needs review",
-      icon: CircleAlert,
-      iconColor: "text-red-400",
-      iconBackground: "bg-red-500/10",
-      border:
-        "hover:border-red-500/40",
+      value: stats.critical_threats,
+      icon: AlertTriangle,
+      color: "text-red-400",
+      note: "Needs review",
     },
     {
       title: "Open Alerts",
-      value: stats.open_alerts.toString(),
-      change: "High-risk items",
+      value: stats.open_alerts,
       icon: Siren,
-      iconColor: "text-blue-400",
-      iconBackground: "bg-blue-500/10",
-      border:
-        "hover:border-blue-500/40",
+      color: "text-blue-400",
+      note: "High-risk items",
     },
     {
       title: "Feeds Online",
       value: `${stats.feeds_online}/8`,
-      change: "All operational",
       icon: Database,
-      iconColor: "text-emerald-400",
-      iconBackground: "bg-emerald-500/10",
-      border:
-        "hover:border-emerald-500/40",
+      color: "text-emerald-400",
+      note: "Feeds available",
     },
   ];
 
-  const currentChartData =
-    chartDataByPeriod[selectedPeriod];
-
-  const displayName = user
-    ? user.is_guest
-      ? "Guest"
-      : user.username
-    : "User";
-
-  const displayRole = user
-    ? user.is_guest
-      ? "Guest Account"
-      : "Threat Analyst"
-    : "Account";
-
   return (
     <main className="min-h-screen bg-[#030509] text-slate-100">
-      <section className="min-w-0 flex-1">
-        {/* HEADER */}
+      <header className="sticky top-0 z-20 flex min-h-20 items-center justify-between border-b border-white/[0.07] bg-[#030509]/90 px-5 backdrop-blur-xl md:px-8">
+        <div className="relative hidden w-full max-w-xl md:block">
+          <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-600" />
+          <input
+            type="search"
+            placeholder="Search indicators, IPs, domains, hashes..."
+            className="h-11 w-full rounded-xl border border-white/[0.08] bg-white/[0.035] pl-11 pr-4 text-sm outline-none placeholder:text-slate-600 focus:border-violet-500/50"
+          />
+        </div>
 
-        <header className="sticky top-0 z-20 flex min-h-20 items-center justify-between border-b border-white/[0.07] bg-[#030509]/90 px-5 backdrop-blur-xl md:px-8">
-          <div className="relative hidden w-full max-w-xl md:block">
-            <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-600" />
+        <Link
+          href="/profile"
+          className="ml-auto flex items-center gap-3 rounded-xl p-1 transition hover:bg-white/[0.04]"
+        >
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500 to-blue-500">
+            <User className="h-5 w-5" />
+          </div>
+          <div>
+            <p className="text-sm font-medium">
+              {displayName}
+            </p>
+            <p className="text-xs text-slate-500">
+              {displayRole}
+            </p>
+          </div>
+        </Link>
+      </header>
 
-            <input
-              type="search"
-              placeholder="Search indicators, IPs, domains, hashes..."
-              className="h-11 w-full rounded-xl border border-white/[0.08] bg-white/[0.035] pl-11 pr-4 text-sm text-slate-200 outline-none transition placeholder:text-slate-600 focus:border-violet-500/50 focus:ring-2 focus:ring-violet-500/10"
-            />
+      <section className="w-full px-5 py-8 md:px-8">
+        <div className="mb-8 flex flex-col justify-between gap-5 sm:flex-row sm:items-end">
+          <div>
+            <div className="mb-3 flex items-center gap-2 text-[11px] font-semibold tracking-[0.18em] text-violet-400">
+              <Activity className="h-4 w-4" />
+              SECURITY OPERATIONS CENTRE
+            </div>
+            <h1 className="text-3xl font-bold tracking-tight md:text-4xl">
+              Threat Overview
+            </h1>
+            <p className="mt-2 text-sm text-slate-500">
+              Global threats. Real-time intelligence.
+              A safer tomorrow.
+            </p>
           </div>
 
-          <div className="ml-auto flex items-center gap-3 md:gap-5">
-            <div className="hidden items-center gap-2 border-r border-white/10 pr-5 sm:flex">
-              <span className="h-2 w-2 rounded-full bg-emerald-400" />
+          <button
+            type="button"
+            onClick={() => setIsModalOpen(true)}
+            className="flex items-center justify-center gap-2 rounded-lg bg-violet-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-violet-500"
+          >
+            <ShieldPlus className="h-4 w-4" />
+            Add Indicator
+          </button>
+        </div>
 
-              <div>
-                <p className="text-xs font-medium text-emerald-400">
-                  System Operational
-                </p>
-
-                <p className="text-[10px] text-slate-600">
-                  All systems online
-                </p>
-              </div>
-            </div>
-
-            <Link
-              href="/profile"
-              className="flex items-center gap-3 rounded-xl p-1 transition hover:bg-white/[0.04]"
-            >
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500 to-blue-500">
-                <User className="h-5 w-5" />
-              </div>
-
-              <div className="hidden xl:block">
-                <p className="text-sm font-medium">
-                  {displayName}
-                </p>
-
-                <p className="text-[11px] text-slate-500">
-                  {displayRole}
-                </p>
-              </div>
-            </Link>
+        {loadError && (
+          <div
+            role="alert"
+            className="mb-5 rounded-xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-300"
+          >
+            {loadError}
           </div>
-        </header>
+        )}
 
-        {/* MAIN CONTENT */}
+        <div className="grid gap-4 sm:grid-cols-2 2xl:grid-cols-4">
+          {cards.map((card) => {
+            const Icon = card.icon;
 
-        <div className="w-full px-5 py-8 md:px-8">
-          {/* TITLE */}
-
-          <div className="mb-8 flex flex-col justify-between gap-5 xl:flex-row xl:items-end">
-            <div>
-              <div className="mb-3 flex items-center gap-2 text-[11px] font-semibold tracking-[0.18em] text-violet-400">
-                <Activity className="h-4 w-4" />
-                SECURITY OPERATIONS CENTRE
-              </div>
-
-              <h2 className="text-3xl font-bold tracking-tight md:text-4xl">
-                Threat Overview
-              </h2>
-
-              <p className="mt-2 text-sm text-slate-500">
-                Global threats. Real-time intelligence.
-                A safer tomorrow.
-              </p>
-            </div>
-
-            {/* ACTIONS */}
-
-            <div className="flex flex-wrap items-center gap-2">
-              <button
-                type="button"
-                onClick={() =>
-                  setIsModalOpen(true)
-                }
-                className="flex items-center gap-2 rounded-lg bg-violet-600 px-4 py-2 text-xs font-semibold text-white transition hover:bg-violet-500"
+            return (
+              <article
+                key={card.title}
+                className="rounded-2xl border border-white/[0.08] bg-[#080c14] p-5 transition hover:border-violet-500/30"
               >
-                <ShieldPlus className="h-4 w-4" />
-                Add Indicator
-              </button>
-
-              {(
-                ["24H", "7D", "30D"] as const
-              ).map((period) => (
-                <button
-                  key={period}
-                  type="button"
-                  onClick={() =>
-                    setSelectedPeriod(period)
-                  }
-                  className={`rounded-lg border px-4 py-2 text-xs font-medium transition ${
-                    selectedPeriod === period
-                      ? "border-violet-500/50 bg-violet-500/15 text-violet-300"
-                      : "border-white/[0.08] bg-white/[0.025] text-slate-500 hover:text-white"
-                  }`}
-                >
-                  {period}
-                </button>
-              ))}
-
-              <button
-                type="button"
-                className="rounded-lg border border-white/[0.08] bg-white/[0.025] p-2 text-slate-500 hover:text-white"
-              >
-                <SlidersHorizontal className="h-4 w-4" />
-              </button>
-            </div>
-          </div>
-
-          {/* STAT CARDS */}
-
-          <div className="grid gap-4 sm:grid-cols-2 2xl:grid-cols-4">
-            {statCards.map((card) => {
-              const Icon = card.icon;
-
-              return (
-                <article
-                  key={card.title}
-                  className={`rounded-2xl border border-white/[0.08] bg-[#080c14] p-5 transition ${card.border}`}
-                >
-                  <div className="flex items-start justify-between">
-                    <div
-                      className={`flex h-11 w-11 items-center justify-center rounded-xl ${card.iconBackground}`}
-                    >
-                      <Icon
-                        className={`h-5 w-5 ${card.iconColor}`}
-                      />
-                    </div>
-
-                    <span
-                      className={`text-xs font-semibold ${card.iconColor}`}
-                    >
-                      {card.change}
-                    </span>
+                <div className="flex items-start justify-between">
+                  <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-white/[0.04]">
+                    <Icon className={`h-5 w-5 ${card.color}`} />
                   </div>
-
-                  <p className="mt-5 text-sm text-slate-500">
-                    {card.title}
-                  </p>
-
-                  <strong className="mt-1 block text-3xl font-bold tracking-tight">
-                    {card.value}
-                  </strong>
-                </article>
-              );
-            })}
-          </div>
-
-          {/* MAP + THREAT ACTIVITY */}
-
-          <div className="mt-5 grid gap-5 2xl:grid-cols-[1.2fr_1fr]">
-            {/* MAP */}
-
-            <article className="overflow-hidden rounded-2xl border border-white/[0.08] bg-[#080c14]">
-              <div className="flex items-center justify-between border-b border-white/[0.07] px-5 py-4">
-                <div>
-                  <h3 className="font-semibold">
-                    Global Threat Map
-                  </h3>
-
-                  <p className="mt-1 text-xs text-slate-500">
-                    Live threat activity across monitored
-                    regions
-                  </p>
-                </div>
-
-                <span className="flex items-center gap-2 rounded-lg border border-emerald-500/20 bg-emerald-500/5 px-3 py-1.5 text-xs text-emerald-400">
-                  <span className="h-2 w-2 rounded-full bg-emerald-400" />
-                  Live
-                </span>
-              </div>
-
-              <div className="relative h-[370px] overflow-hidden bg-[radial-gradient(circle_at_center,rgba(87,38,180,0.14),transparent_62%)]">
-                <div className="absolute inset-0 opacity-20 [background-image:linear-gradient(rgba(148,163,184,0.12)_1px,transparent_1px),linear-gradient(90deg,rgba(148,163,184,0.12)_1px,transparent_1px)] [background-size:30px_30px]" />
-
-                <Globe2 className="absolute left-1/2 top-1/2 h-64 w-64 -translate-x-1/2 -translate-y-1/2 text-violet-400/15 md:h-80 md:w-80" />
-
-                <div className="absolute inset-x-[12%] top-[25%] h-[48%] rounded-[50%] border border-violet-400/15 bg-violet-400/[0.025] shadow-[inset_0_0_80px_rgba(139,92,246,0.08)]" />
-
-                {mapPoints.map(
-                  (point, index) => (
-                    <span
-                      key={index}
-                      className={`absolute ${point.size} ${point.color} rounded-full shadow-[0_0_18px_currentColor]`}
-                      style={{
-                        left: point.left,
-                        top: point.top,
-                      }}
-                    >
-                      <span className="absolute inset-0 animate-ping rounded-full bg-current opacity-40" />
-                    </span>
-                  ),
-                )}
-
-                <div className="absolute bottom-5 left-5 flex flex-wrap gap-4 rounded-xl border border-white/[0.07] bg-black/40 px-4 py-3 text-[11px] backdrop-blur">
-                  <span className="text-red-400">
-                    ● Critical
-                  </span>
-
-                  <span className="text-orange-400">
-                    ● High
-                  </span>
-
-                  <span className="text-violet-400">
-                    ● Medium
-                  </span>
-
-                  <span className="text-cyan-400">
-                    ● Low
+                  <span className={`text-xs font-semibold ${card.color}`}>
+                    {card.note}
                   </span>
                 </div>
-              </div>
-            </article>
-
-            {/* THREAT ACTIVITY */}
-
-            <article className="rounded-2xl border border-white/[0.08] bg-[#080c14] p-5">
-              <div className="mb-5">
-                <h3 className="font-semibold">
-                  Threat Activity
-                </h3>
-
-                <p className="mt-1 text-xs text-slate-500">
-                  Showing threat activity for{" "}
-                  {selectedPeriod}
+                <p className="mt-5 text-sm text-slate-500">
+                  {card.title}
                 </p>
-              </div>
+                <strong className="mt-1 block text-3xl font-bold tracking-tight">
+                  {typeof card.value === "number"
+                    ? card.value.toLocaleString()
+                    : card.value}
+                </strong>
+              </article>
+            );
+          })}
+        </div>
 
-              <div className="h-[315px]">
-                <ResponsiveContainer
-                  width="100%"
-                  height="100%"
-                >
-                  <AreaChart
-                    data={currentChartData}
-                  >
-                    <defs>
-                      <linearGradient
-                        id="totalGradient"
-                        x1="0"
-                        y1="0"
-                        x2="0"
-                        y2="1"
-                      >
-                        <stop
-                          offset="0%"
-                          stopColor="#8b5cf6"
-                          stopOpacity={0.45}
-                        />
-
-                        <stop
-                          offset="100%"
-                          stopColor="#8b5cf6"
-                          stopOpacity={0}
-                        />
-                      </linearGradient>
-                    </defs>
-
-                    <CartesianGrid
-                      stroke="rgba(148,163,184,0.08)"
-                      vertical={false}
-                    />
-
-                    <XAxis
-                      dataKey="time"
-                      tick={{
-                        fill: "#64748b",
-                        fontSize: 11,
-                      }}
-                      axisLine={false}
-                      tickLine={false}
-                      tickMargin={8}
-                    />
-
-                    <YAxis
-                      tick={{
-                        fill: "#64748b",
-                        fontSize: 11,
-                      }}
-                      axisLine={false}
-                      tickLine={false}
-                      width={45}
-                    />
-
-                    <Tooltip
-                      contentStyle={{
-                        backgroundColor:
-                          "#0b0f17",
-                        border:
-                          "1px solid rgba(255,255,255,0.08)",
-                        borderRadius: "10px",
-                        color: "#fff",
-                      }}
-                      labelStyle={{
-                        color: "#94a3b8",
-                        marginBottom: "4px",
-                      }}
-                      formatter={(
-                        value,
-                        name,
-                      ) => [
-                        value,
-                        name === "total"
-                          ? "Total Threats"
-                          : "Critical Threats",
-                      ]}
-                    />
-
-                    <Legend
-                      wrapperStyle={{
-                        paddingTop: "10px",
-                        fontSize: "12px",
-                      }}
-                      formatter={(value) =>
-                        value === "total"
-                          ? "Total Threats"
-                          : "Critical Threats"
-                      }
-                    />
-
-                    <Area
-                      type="monotone"
-                      dataKey="total"
-                      stroke="#8b5cf6"
-                      strokeWidth={2.5}
-                      fill="url(#totalGradient)"
-                    />
-
-                    <Area
-                      type="monotone"
-                      dataKey="critical"
-                      stroke="#fb4b62"
-                      strokeWidth={2}
-                      fill="transparent"
-                    />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </div>
-            </article>
-          </div>
-
-          {/* SEVERITY + LATEST INTELLIGENCE */}
-
-          <div className="mt-5 grid gap-5 2xl:grid-cols-[0.75fr_1.25fr]">
-            {/* SEVERITY */}
-
-            <article className="rounded-2xl border border-white/[0.08] bg-[#080c14] p-5">
-              <h3 className="font-semibold">
-                Threat Severity
-              </h3>
-
+        <div className="mt-5 grid gap-5 2xl:grid-cols-[0.8fr_1.2fr]">
+          <article className="overflow-hidden rounded-2xl border border-white/[0.08] bg-[#080c14]">
+            <div className="border-b border-white/[0.07] px-5 py-4">
+              <h2 className="font-semibold">Global Threat Map</h2>
               <p className="mt-1 text-xs text-slate-500">
-                Distribution by severity level
+                Threat activity overview
               </p>
+            </div>
+            <div className="relative flex h-72 items-center justify-center bg-[radial-gradient(circle_at_center,rgba(87,38,180,0.14),transparent_62%)]">
+              <div className="absolute inset-0 opacity-20 [background-image:linear-gradient(rgba(148,163,184,0.12)_1px,transparent_1px),linear-gradient(90deg,rgba(148,163,184,0.12)_1px,transparent_1px)] [background-size:30px_30px]" />
+              <Globe2 className="h-44 w-44 text-violet-400/20" />
+              <span className="absolute left-[25%] top-[30%] h-3 w-3 animate-pulse rounded-full bg-red-400" />
+              <span className="absolute left-[60%] top-[42%] h-3 w-3 animate-pulse rounded-full bg-orange-400" />
+              <span className="absolute left-[48%] top-[65%] h-3 w-3 animate-pulse rounded-full bg-cyan-400" />
+              <span className="absolute bottom-4 left-4 text-xs text-slate-500">
+                Illustrative threat activity
+              </span>
+            </div>
+          </article>
 
-              <div className="mt-4 grid items-center gap-4 md:grid-cols-[1fr_0.9fr]">
-                <div className="relative h-56">
-                  <ResponsiveContainer
-                    width="100%"
-                    height="100%"
-                  >
-                    <PieChart>
-                      <Pie
-                        data={severityData}
-                        dataKey="value"
-                        innerRadius={62}
-                        outerRadius={88}
-                        paddingAngle={2}
-                        stroke="transparent"
-                      >
-                        {severityData.map(
-                          (entry) => (
-                            <Cell
-                              key={entry.name}
-                              fill={entry.color}
-                            />
-                          ),
-                        )}
-                      </Pie>
-
-                      <Tooltip
-                        contentStyle={{
-                          background:
-                            "#080c14",
-                          border:
-                            "1px solid rgba(255,255,255,0.1)",
-                          borderRadius:
-                            "12px",
-                          color: "#ffffff",
-                        }}
-                      />
-                    </PieChart>
-                  </ResponsiveContainer>
-
-                  <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
-                    <strong className="text-2xl">
-                      {stats.active_indicators.toLocaleString()}
-                    </strong>
-
-                    <span className="text-xs text-slate-500">
-                      Indicators
-                    </span>
-                  </div>
-                </div>
-
-                <div className="space-y-3">
-                  {severityData.map(
-                    (item) => (
-                      <div
-                        key={item.name}
-                        className="flex items-center justify-between text-sm"
-                      >
-                        <span className="flex items-center gap-2 text-slate-400">
-                          <span
-                            className="h-2.5 w-2.5 rounded-full"
-                            style={{
-                              backgroundColor:
-                                item.color,
-                            }}
-                          />
-
-                          {item.name}
-                        </span>
-
-                        <span className="font-medium">
-                          {item.value.toLocaleString()}
-                        </span>
-                      </div>
-                    ),
-                  )}
-                </div>
+          <article className="overflow-hidden rounded-2xl border border-white/[0.08] bg-[#080c14]">
+            <div className="flex items-center justify-between border-b border-white/[0.07] p-5">
+              <div>
+                <h2 className="font-semibold">
+                  Latest Threat Intelligence
+                </h2>
+                <p className="mt-1 text-xs text-slate-500">
+                  Recently recorded indicators
+                </p>
               </div>
-            </article>
+              <Link
+                href="/indicators"
+                className="text-xs font-medium text-violet-400 hover:text-violet-300"
+              >
+                View all →
+              </Link>
+            </div>
 
-            {/* LATEST THREATS */}
-
-            <article className="overflow-hidden rounded-2xl border border-white/[0.08] bg-[#080c14]">
-              <div className="flex items-center justify-between border-b border-white/[0.07] p-5">
-                <div>
-                  <h3 className="font-semibold">
-                    Latest Threat Intelligence
-                  </h3>
-
-                  <p className="mt-1 text-xs text-slate-500">
-                    Recently detected indicators of
-                    compromise
-                  </p>
-                </div>
-
-                <Link
-                  href="/indicators"
-                  className="text-xs font-medium text-violet-400 hover:text-violet-300"
-                >
-                  View all →
-                </Link>
+            {threats.length === 0 ? (
+              <div className="p-8 text-center text-sm text-slate-500">
+                No indicators found.
               </div>
-
+            ) : (
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[720px] text-left text-sm">
+                <table className="w-full min-w-[620px] text-left text-sm">
                   <thead className="text-[10px] uppercase tracking-wider text-slate-600">
                     <tr>
-                      <th className="px-5 py-4">
-                        Indicator
-                      </th>
-
-                      <th className="px-5 py-4">
-                        Type
-                      </th>
-
-                      <th className="px-5 py-4">
-                        Risk
-                      </th>
-
-                      <th className="px-5 py-4">
-                        Severity
-                      </th>
-
-                      <th className="px-5 py-4">
-                        Source
-                      </th>
-
-                      <th className="px-5 py-4">
-                        Time
-                      </th>
+                      <th className="px-5 py-4">Indicator</th>
+                      <th className="px-5 py-4">Type</th>
+                      <th className="px-5 py-4">Risk</th>
+                      <th className="px-5 py-4">Severity</th>
+                      <th className="px-5 py-4">Source</th>
                     </tr>
                   </thead>
-
                   <tbody>
-                    {threats.map(
-                      (threat) => (
-                        <tr
-                          key={threat.indicator}
-                          className="border-t border-white/[0.055] transition hover:bg-white/[0.025]"
-                        >
-                          <td className="max-w-52 truncate px-5 py-4 font-mono text-xs text-blue-300">
-                            {threat.indicator}
-                          </td>
-
-                          <td className="px-5 py-4 text-slate-500">
-                            {threat.type}
-                          </td>
-
-                          <td className="px-5 py-4 font-semibold">
-                            {threat.score}
-                          </td>
-
-                          <td className="px-5 py-4">
-                            <span
-                              className={`inline-flex items-center gap-2 rounded-full px-2.5 py-1 text-xs ${
-                                threat.severity ===
-                                "Critical"
-                                  ? "bg-red-500/10 text-red-400"
-                                  : threat.severity ===
-                                      "High"
-                                    ? "bg-orange-500/10 text-orange-400"
-                                    : "bg-violet-500/10 text-violet-400"
-                              }`}
-                            >
-                              <span className="h-1.5 w-1.5 rounded-full bg-current" />
-
-                              {threat.severity}
-                            </span>
-                          </td>
-
-                          <td className="px-5 py-4 text-slate-500">
-                            {threat.source}
-                          </td>
-
-                          <td className="px-5 py-4 text-slate-600">
-                            {threat.time}
-                          </td>
-                        </tr>
-                      ),
-                    )}
+                    {threats.map((threat) => (
+                      <tr
+                        key={threat.id}
+                        className="border-t border-white/[0.055] transition hover:bg-white/[0.025]"
+                      >
+                        <td className="max-w-52 truncate px-5 py-4 font-mono text-xs text-blue-300">
+                          {threat.indicator}
+                        </td>
+                        <td className="px-5 py-4 text-slate-500">
+                          {threat.type}
+                        </td>
+                        <td className="px-5 py-4 font-semibold">
+                          {threat.score}
+                        </td>
+                        <td className="px-5 py-4">
+                          <span className="rounded-full bg-violet-500/10 px-2.5 py-1 text-xs text-violet-300">
+                            {threat.severity}
+                          </span>
+                        </td>
+                        <td className="px-5 py-4 text-slate-500">
+                          {threat.source}
+                        </td>
+                      </tr>
+                    ))}
                   </tbody>
                 </table>
               </div>
-            </article>
-          </div>
+            )}
+          </article>
         </div>
       </section>
 
-      {/* ADD INDICATOR MODAL */}
-
       <AddIndicatorModal
         isOpen={isModalOpen}
-        onClose={() =>
-          setIsModalOpen(false)
-        }
-        onCreated={() => {
-          window.location.reload();
-        }}
+        onClose={() => setIsModalOpen(false)}
+        onCreated={() => window.location.reload()}
       />
     </main>
   );
