@@ -34,14 +34,23 @@ import {
 
 import AddIndicatorModal from "./components/AddIndicatorModal";
 
+
 const API_URL =
-  process.env.NEXT_PUBLIC_API_URL ?? "https://threatlens-1-hu2v.onrender.com";
+  process.env.NEXT_PUBLIC_API_URL ??
+  "https://threatlens-1-hu2v.onrender.com";
 
 type DashboardStats = {
   active_indicators: number;
   critical_threats: number;
   open_alerts: number;
   feeds_online: number;
+};
+
+type UserData = {
+  username: string;
+  email: string;
+  is_active: boolean;
+  is_guest: boolean;
 };
 
 type Threat = {
@@ -192,7 +201,11 @@ export default function Home() {
   const [stats, setStats] =
     useState<DashboardStats>(fallbackStats);
 
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [user, setUser] =
+    useState<UserData | null>(null);
+
+  const [isModalOpen, setIsModalOpen] =
+    useState(false);
 
   const [threats, setThreats] =
     useState<Threat[]>(fallbackThreats);
@@ -200,6 +213,62 @@ export default function Home() {
   const [selectedPeriod, setSelectedPeriod] =
     useState<"24H" | "7D" | "30D">("24H");
 
+  /*
+   * LOAD CURRENT USER
+   *
+   * Guest:
+   *   Guest
+   *   Guest Account
+   *
+   * Google:
+   *   Actual username
+   *   Threat Analyst
+   */
+  useEffect(() => {
+    async function loadUser() {
+      const token = localStorage.getItem(
+        "threatlens_access_token",
+      );
+
+      if (!token) {
+        return;
+      }
+
+      try {
+        const response = await fetch(
+          `${API_URL}/api/auth/me`,
+          {
+            method: "GET",
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          },
+        );
+
+        if (!response.ok) {
+          return;
+        }
+
+        const data: UserData =
+          await response.json();
+
+        setUser(data);
+      } catch (error) {
+        console.error(
+          "Failed to load user:",
+          error,
+        );
+
+        setUser(null);
+      }
+    }
+
+    void loadUser();
+  }, []);
+
+  /*
+   * LOAD DASHBOARD DATA
+   */
   useEffect(() => {
     async function loadDashboardData() {
       try {
@@ -219,7 +288,8 @@ export default function Home() {
         );
 
         if (indicatorsResponse.ok) {
-          const indicators = await indicatorsResponse.json();
+          const indicators =
+            await indicatorsResponse.json();
 
           const formattedIndicators: Threat[] =
             indicators.map(
@@ -259,18 +329,20 @@ export default function Home() {
       }
     }
 
-    loadDashboardData();
+    void loadDashboardData();
   }, []);
 
   const statCards = [
     {
       title: "Active Indicators",
-      value: stats.active_indicators.toLocaleString(),
+      value:
+        stats.active_indicators.toLocaleString(),
       change: "Stored IOCs",
       icon: Radar,
       iconColor: "text-violet-400",
       iconBackground: "bg-violet-500/10",
-      border: "hover:border-violet-500/40",
+      border:
+        "hover:border-violet-500/40",
     },
     {
       title: "Critical Threats",
@@ -279,7 +351,8 @@ export default function Home() {
       icon: CircleAlert,
       iconColor: "text-red-400",
       iconBackground: "bg-red-500/10",
-      border: "hover:border-red-500/40",
+      border:
+        "hover:border-red-500/40",
     },
     {
       title: "Open Alerts",
@@ -288,7 +361,8 @@ export default function Home() {
       icon: Siren,
       iconColor: "text-blue-400",
       iconBackground: "bg-blue-500/10",
-      border: "hover:border-blue-500/40",
+      border:
+        "hover:border-blue-500/40",
     },
     {
       title: "Feeds Online",
@@ -297,12 +371,25 @@ export default function Home() {
       icon: Database,
       iconColor: "text-emerald-400",
       iconBackground: "bg-emerald-500/10",
-      border: "hover:border-emerald-500/40",
+      border:
+        "hover:border-emerald-500/40",
     },
   ];
 
   const currentChartData =
     chartDataByPeriod[selectedPeriod];
+
+  const displayName = user
+    ? user.is_guest
+      ? "Guest"
+      : user.username
+    : "User";
+
+  const displayRole = user
+    ? user.is_guest
+      ? "Guest Account"
+      : "Threat Analyst"
+    : "Account";
 
   return (
     <main className="min-h-screen bg-[#030509] text-slate-100">
@@ -335,8 +422,6 @@ export default function Home() {
               </div>
             </div>
 
-           
-
             <Link
               href="/profile"
               className="flex items-center gap-3 rounded-xl p-1 transition hover:bg-white/[0.04]"
@@ -347,11 +432,11 @@ export default function Home() {
 
               <div className="hidden xl:block">
                 <p className="text-sm font-medium">
-                  Devendra Sinha
+                  {displayName}
                 </p>
 
                 <p className="text-[11px] text-slate-500">
-                  Threat Analyst
+                  {displayRole}
                 </p>
               </div>
             </Link>
@@ -375,8 +460,8 @@ export default function Home() {
               </h2>
 
               <p className="mt-2 text-sm text-slate-500">
-                Global threats. Real-time intelligence. A safer
-                tomorrow.
+                Global threats. Real-time intelligence.
+                A safer tomorrow.
               </p>
             </div>
 
@@ -385,29 +470,33 @@ export default function Home() {
             <div className="flex flex-wrap items-center gap-2">
               <button
                 type="button"
-                onClick={() => setIsModalOpen(true)}
+                onClick={() =>
+                  setIsModalOpen(true)
+                }
                 className="flex items-center gap-2 rounded-lg bg-violet-600 px-4 py-2 text-xs font-semibold text-white transition hover:bg-violet-500"
               >
                 <ShieldPlus className="h-4 w-4" />
                 Add Indicator
               </button>
 
-              {(["24H", "7D", "30D"] as const).map(
-                (period) => (
-                  <button
-                    key={period}
-                    type="button"
-                    onClick={() => setSelectedPeriod(period)}
-                    className={`rounded-lg border px-4 py-2 text-xs font-medium transition ${
-                      selectedPeriod === period
-                        ? "border-violet-500/50 bg-violet-500/15 text-violet-300"
-                        : "border-white/[0.08] bg-white/[0.025] text-slate-500 hover:text-white"
-                    }`}
-                  >
-                    {period}
-                  </button>
-                ),
-              )}
+              {(
+                ["24H", "7D", "30D"] as const
+              ).map((period) => (
+                <button
+                  key={period}
+                  type="button"
+                  onClick={() =>
+                    setSelectedPeriod(period)
+                  }
+                  className={`rounded-lg border px-4 py-2 text-xs font-medium transition ${
+                    selectedPeriod === period
+                      ? "border-violet-500/50 bg-violet-500/15 text-violet-300"
+                      : "border-white/[0.08] bg-white/[0.025] text-slate-500 hover:text-white"
+                  }`}
+                >
+                  {period}
+                </button>
+              ))}
 
               <button
                 type="button"
@@ -470,7 +559,8 @@ export default function Home() {
                   </h3>
 
                   <p className="mt-1 text-xs text-slate-500">
-                    Live threat activity across monitored regions
+                    Live threat activity across monitored
+                    regions
                   </p>
                 </div>
 
@@ -487,18 +577,20 @@ export default function Home() {
 
                 <div className="absolute inset-x-[12%] top-[25%] h-[48%] rounded-[50%] border border-violet-400/15 bg-violet-400/[0.025] shadow-[inset_0_0_80px_rgba(139,92,246,0.08)]" />
 
-                {mapPoints.map((point, index) => (
-                  <span
-                    key={index}
-                    className={`absolute ${point.size} ${point.color} rounded-full shadow-[0_0_18px_currentColor]`}
-                    style={{
-                      left: point.left,
-                      top: point.top,
-                    }}
-                  >
-                    <span className="absolute inset-0 animate-ping rounded-full bg-current opacity-40" />
-                  </span>
-                ))}
+                {mapPoints.map(
+                  (point, index) => (
+                    <span
+                      key={index}
+                      className={`absolute ${point.size} ${point.color} rounded-full shadow-[0_0_18px_currentColor]`}
+                      style={{
+                        left: point.left,
+                        top: point.top,
+                      }}
+                    >
+                      <span className="absolute inset-0 animate-ping rounded-full bg-current opacity-40" />
+                    </span>
+                  ),
+                )}
 
                 <div className="absolute bottom-5 left-5 flex flex-wrap gap-4 rounded-xl border border-white/[0.07] bg-black/40 px-4 py-3 text-[11px] backdrop-blur">
                   <span className="text-red-400">
@@ -529,7 +621,8 @@ export default function Home() {
                 </h3>
 
                 <p className="mt-1 text-xs text-slate-500">
-                  Showing threat activity for {selectedPeriod}
+                  Showing threat activity for{" "}
+                  {selectedPeriod}
                 </p>
               </div>
 
@@ -538,7 +631,9 @@ export default function Home() {
                   width="100%"
                   height="100%"
                 >
-                  <AreaChart data={currentChartData}>
+                  <AreaChart
+                    data={currentChartData}
+                  >
                     <defs>
                       <linearGradient
                         id="totalGradient"
@@ -589,7 +684,8 @@ export default function Home() {
 
                     <Tooltip
                       contentStyle={{
-                        backgroundColor: "#0b0f17",
+                        backgroundColor:
+                          "#0b0f17",
                         border:
                           "1px solid rgba(255,255,255,0.08)",
                         borderRadius: "10px",
@@ -599,7 +695,10 @@ export default function Home() {
                         color: "#94a3b8",
                         marginBottom: "4px",
                       }}
-                      formatter={(value, name) => [
+                      formatter={(
+                        value,
+                        name,
+                      ) => [
                         value,
                         name === "total"
                           ? "Total Threats"
@@ -669,20 +768,24 @@ export default function Home() {
                         paddingAngle={2}
                         stroke="transparent"
                       >
-                        {severityData.map((entry) => (
-                          <Cell
-                            key={entry.name}
-                            fill={entry.color}
-                          />
-                        ))}
+                        {severityData.map(
+                          (entry) => (
+                            <Cell
+                              key={entry.name}
+                              fill={entry.color}
+                            />
+                          ),
+                        )}
                       </Pie>
 
                       <Tooltip
                         contentStyle={{
-                          background: "#080c14",
+                          background:
+                            "#080c14",
                           border:
                             "1px solid rgba(255,255,255,0.1)",
-                          borderRadius: "12px",
+                          borderRadius:
+                            "12px",
                           color: "#ffffff",
                         }}
                       />
@@ -701,27 +804,30 @@ export default function Home() {
                 </div>
 
                 <div className="space-y-3">
-                  {severityData.map((item) => (
-                    <div
-                      key={item.name}
-                      className="flex items-center justify-between text-sm"
-                    >
-                      <span className="flex items-center gap-2 text-slate-400">
-                        <span
-                          className="h-2.5 w-2.5 rounded-full"
-                          style={{
-                            backgroundColor: item.color,
-                          }}
-                        />
+                  {severityData.map(
+                    (item) => (
+                      <div
+                        key={item.name}
+                        className="flex items-center justify-between text-sm"
+                      >
+                        <span className="flex items-center gap-2 text-slate-400">
+                          <span
+                            className="h-2.5 w-2.5 rounded-full"
+                            style={{
+                              backgroundColor:
+                                item.color,
+                            }}
+                          />
 
-                        {item.name}
-                      </span>
+                          {item.name}
+                        </span>
 
-                      <span className="font-medium">
-                        {item.value.toLocaleString()}
-                      </span>
-                    </div>
-                  ))}
+                        <span className="font-medium">
+                          {item.value.toLocaleString()}
+                        </span>
+                      </div>
+                    ),
+                  )}
                 </div>
               </div>
             </article>
@@ -736,7 +842,8 @@ export default function Home() {
                   </h3>
 
                   <p className="mt-1 text-xs text-slate-500">
-                    Recently detected indicators of compromise
+                    Recently detected indicators of
+                    compromise
                   </p>
                 </div>
 
@@ -756,65 +863,75 @@ export default function Home() {
                         Indicator
                       </th>
 
-                      <th className="px-5 py-4">Type</th>
+                      <th className="px-5 py-4">
+                        Type
+                      </th>
 
-                      <th className="px-5 py-4">Risk</th>
+                      <th className="px-5 py-4">
+                        Risk
+                      </th>
 
                       <th className="px-5 py-4">
                         Severity
                       </th>
 
-                      <th className="px-5 py-4">Source</th>
+                      <th className="px-5 py-4">
+                        Source
+                      </th>
 
-                      <th className="px-5 py-4">Time</th>
+                      <th className="px-5 py-4">
+                        Time
+                      </th>
                     </tr>
                   </thead>
 
                   <tbody>
-                    {threats.map((threat) => (
-                      <tr
-                        key={threat.indicator}
-                        className="border-t border-white/[0.055] transition hover:bg-white/[0.025]"
-                      >
-                        <td className="max-w-52 truncate px-5 py-4 font-mono text-xs text-blue-300">
-                          {threat.indicator}
-                        </td>
+                    {threats.map(
+                      (threat) => (
+                        <tr
+                          key={threat.indicator}
+                          className="border-t border-white/[0.055] transition hover:bg-white/[0.025]"
+                        >
+                          <td className="max-w-52 truncate px-5 py-4 font-mono text-xs text-blue-300">
+                            {threat.indicator}
+                          </td>
 
-                        <td className="px-5 py-4 text-slate-500">
-                          {threat.type}
-                        </td>
+                          <td className="px-5 py-4 text-slate-500">
+                            {threat.type}
+                          </td>
 
-                        <td className="px-5 py-4 font-semibold">
-                          {threat.score}
-                        </td>
+                          <td className="px-5 py-4 font-semibold">
+                            {threat.score}
+                          </td>
 
-                        <td className="px-5 py-4">
-                          <span
-                            className={`inline-flex items-center gap-2 rounded-full px-2.5 py-1 text-xs ${
-                              threat.severity ===
-                              "Critical"
-                                ? "bg-red-500/10 text-red-400"
-                                : threat.severity ===
-                                    "High"
-                                  ? "bg-orange-500/10 text-orange-400"
-                                  : "bg-violet-500/10 text-violet-400"
-                            }`}
-                          >
-                            <span className="h-1.5 w-1.5 rounded-full bg-current" />
+                          <td className="px-5 py-4">
+                            <span
+                              className={`inline-flex items-center gap-2 rounded-full px-2.5 py-1 text-xs ${
+                                threat.severity ===
+                                "Critical"
+                                  ? "bg-red-500/10 text-red-400"
+                                  : threat.severity ===
+                                      "High"
+                                    ? "bg-orange-500/10 text-orange-400"
+                                    : "bg-violet-500/10 text-violet-400"
+                              }`}
+                            >
+                              <span className="h-1.5 w-1.5 rounded-full bg-current" />
 
-                            {threat.severity}
-                          </span>
-                        </td>
+                              {threat.severity}
+                            </span>
+                          </td>
 
-                        <td className="px-5 py-4 text-slate-500">
-                          {threat.source}
-                        </td>
+                          <td className="px-5 py-4 text-slate-500">
+                            {threat.source}
+                          </td>
 
-                        <td className="px-5 py-4 text-slate-600">
-                          {threat.time}
-                        </td>
-                      </tr>
-                    ))}
+                          <td className="px-5 py-4 text-slate-600">
+                            {threat.time}
+                          </td>
+                        </tr>
+                      ),
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -827,7 +944,9 @@ export default function Home() {
 
       <AddIndicatorModal
         isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
+        onClose={() =>
+          setIsModalOpen(false)
+        }
         onCreated={() => {
           window.location.reload();
         }}
