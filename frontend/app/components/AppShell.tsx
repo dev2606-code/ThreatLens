@@ -21,8 +21,8 @@ export default function AppShell({ children }: AppShellProps) {
   const pathname = usePathname();
 
   const isAuthPage = AUTH_ROUTES.includes(pathname);
-
-  if (isAuthPage) {
+const isDashboardHome = pathname === "/";
+if (isAuthPage || isDashboardHome) {
     return (
       <div className="min-h-screen bg-[#07090d]">
         {children}
