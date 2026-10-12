@@ -17,11 +17,9 @@ import {
   User,
 } from "lucide-react";
 import AddIndicatorModal from "./components/AddIndicatorModal";
-
 const API_URL =
   process.env.NEXT_PUBLIC_API_URL ??
   "https://threatlens-1-hu2v.onrender.com";
-
 type UserData = {
   username: string;
   email: string;
