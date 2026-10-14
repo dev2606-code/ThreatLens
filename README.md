@@ -4,9 +4,14 @@ ThreatLens is a full-stack Cyber Threat Intelligence dashboard for managing Indi
 
 ## Live Application
 
-- Frontend: https://threat-lens-dusky.vercel.app
-- Backend API: https://threatlens-3sro.onrender.com
-- API Documentation: https://threatlens-3sro.onrender.com/docs
+**Live Website:** https://threat-lens-anm8.vercel.app/
+
+**Backend API:** https://threatlens-1-hu2v.onrender.com
+
+**API Documentation:** https://threatlens-1-hu2v.onrender.com/docs
+
+**GitHub Repository:** https://github.com/dev2606-code/ThreatLens
+
 
 > The dashboard requires an authorized account. Public registration is disabled.
 
@@ -111,29 +116,8 @@ ThreatLens/
 
 A Cyber Threat Intelligence Dashboard for managing Indicators of Compromise (IOCs), monitoring security alerts, and visualizing threat activity.
 
-## 🚀 Live Demo
 
-**Live Website:** https://threat-lens-anm8.vercel.app/
 
-**Backend API:** https://threatlens-1-hu2v.onrender.com
-
-**API Documentation:** https://threatlens-1-hu2v.onrender.com/docs
-
-**GitHub Repository:** https://github.com/dev2606-code/ThreatLens
-
-## 📸 Website Screenshots
-
-### Dashboard
-![ThreatLens Dashboard](screenshots/dashboard.png)
-
-### Login Page
-![ThreatLens Login](screenshots/login.png)
-
-### Indicators Page
-![ThreatLens Indicators](screenshots/indicators.png)
-
-### Alerts Page
-![ThreatLens Alerts](screenshots/alerts.png)
 
 > Screenshots are stored in the `screenshots/` directory. Add the actual website screenshots using the filenames shown above.
 
